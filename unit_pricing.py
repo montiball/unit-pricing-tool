@@ -12,7 +12,7 @@ st.caption("Use units to design, price, and simulate strategic research sprints"
 
 openai.api_key = st.secrets["openai"]["api_key"]
 
-tab1, tab2, tab3, tab4 = st.tabs(["🧩 Manual Builder", "🤖 GPT Planner", "📊 Sprint Log", "📈 Simulation"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧩 Manual Builder", "🤖 GPT Planner", "📊 Sprint Log", "📈 Simulation", "💰 Unit Cost"])
 
 # Global settings
 with st.sidebar:
@@ -110,7 +110,36 @@ with tab1:
         })
         st.success("Task added ✅")
 
+
 # ---------------- Tab 2: GPT Planner ----------------
+from openai import OpenAI
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+
+with tab2:
+    st.subheader("🤖 GPT Sprint Planner")
+    goal = st.text_area("Describe your sprint goal")
+
+    if st.button("Generate Plan with GPT"):
+        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
+        for domain, tasks in domain_tasks.items():
+            for t in tasks:
+                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
+                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
+        prompt += f"\nSprint goal: {goal}"
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=600
+            )
+            output = response.choices[0].message.content
+            st.markdown("### Suggested Sprint Plan")
+            st.markdown(output)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 with tab2:
     st.subheader("🤖 GPT Sprint Planner")
     goal = st.text_area("Describe your sprint goal")
@@ -192,3 +221,42 @@ with tab4:
 
         st.markdown("#### Units by Domain")
         st.dataframe(df.groupby("Domain")["Units"].sum().reset_index())
+
+# ---------------- Tab 5: Unit Cost Calculator ----------------
+with tab5:
+    st.subheader("💰 What Should a Unit Cost?")
+    st.caption("Use this tool to test how much each task costs and what unit price makes sense.")
+
+    task_data = [
+        {"Task": "Focus Group", "Tier 1": 1, "Tier 2": 2, "Tier 3": 8, "Other Costs": 500},
+        {"Task": "Survey + Report", "Tier 1": 1, "Tier 2": 2, "Tier 3": 5, "Other Costs": 300},
+        {"Task": "Stakeholder Interviews", "Tier 1": 1, "Tier 2": 3, "Tier 3": 6, "Other Costs": 400},
+    ]
+
+    df = pd.DataFrame(task_data)
+    st.markdown("### 🧩 Sample Tasks")
+    st.dataframe(df, use_container_width=True)
+
+    st.markdown("### 🔧 Cost Settings")
+    c1, c2, c3, c4 = st.columns(4)
+    t1 = c1.number_input("Tier 1 Rate", value=tier1_rate)
+    t2 = c2.number_input("Tier 2 Rate", value=tier2_rate)
+    t3 = c3.number_input("Tier 3 Rate", value=tier3_rate)
+    oh = c4.number_input("Overhead %", value=overhead_percent)
+
+    st.markdown("### 💸 Cost Per Task (with Overhead)")
+    results = []
+    for _, row in df.iterrows():
+        base = row["Tier 1"] * t1 + row["Tier 2"] * t2 + row["Tier 3"] * t3
+        cost = (base + row["Other Costs"]) * (1 + oh / 100)
+        results.append({"Task": row["Task"], "Cost ($)": round(cost, 2)})
+
+    result_df = pd.DataFrame(results)
+    st.dataframe(result_df, use_container_width=True)
+
+    total_cost = sum(r["Cost ($)"] for r in results)
+    avg_cost = total_cost / len(results)
+    st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
+
+    proposed_price = st.slider("Try Unit Price ($)", 3000, 10000, step=250, value=int(avg_cost))
+    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit")
