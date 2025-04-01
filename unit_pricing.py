@@ -111,7 +111,42 @@ with tab1:
         st.success("Task added ✅")
 
 
+
 # ---------------- Tab 2: GPT Planner ----------------
+with tab2:
+    st.subheader("🤖 GPT Sprint Planner")
+    st.markdown("Use GPT-4 to generate a suggested sprint plan based on your high-level research or business goal. The model selects from your real task menu.")
+
+    import uuid
+    if "gpt_widget_key" not in st.session_state:
+        st.session_state["gpt_widget_key"] = f"gpt_input_{uuid.uuid4()}"
+
+    goal = st.text_area("Describe your sprint goal", key=st.session_state["gpt_widget_key"])
+
+    if st.button("Generate Plan with GPT"):
+        from openai import OpenAI
+        client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+
+        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
+        for domain, tasks in domain_tasks.items():
+            for t in tasks:
+                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
+                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
+        prompt += f"\nSprint goal: {goal}"
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=600
+            )
+            output = response.choices[0].message.content
+            st.markdown("### Suggested Sprint Plan")
+            st.markdown(output)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 from openai import OpenAI
 client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
