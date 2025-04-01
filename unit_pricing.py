@@ -5,7 +5,7 @@ st.set_page_config(page_title="Agile Unit Pricing Tool", layout="centered")
 
 st.title("Agile Unit Pricing Tool")
 
-# Define expanded domain tasks with descriptions and default hours
+# Define tasks with descriptions and default hours
 domain_tasks = {
     "Discovery & Design": {
         "Landscape Scan": ("Brief lit or market scan with synthesis", 1, 2, 4),
@@ -68,13 +68,13 @@ task = st.selectbox("Task", list(domain_tasks[domain].keys()))
 desc, default_t1, default_t2, default_t3 = domain_tasks[domain][task]
 st.markdown(f"**Description:** {desc}")
 
-# Auto-filled input fields based on task defaults
+# Input Fields
 tier1_hours = st.number_input("Tier 1 Hours", value=default_t1)
 tier2_hours = st.number_input("Tier 2 Hours", value=default_t2)
 tier3_hours = st.number_input("Tier 3 Hours", value=default_t3)
 additional_costs = st.number_input("Additional Costs (e.g. incentives, travel, supplies)", value=500.0)
 
-# Calculate costs and units
+# Cost Calculations
 staff_cost = (tier1_hours * tier1_rate) + (tier2_hours * tier2_rate) + (tier3_hours * tier3_rate)
 total_raw_cost = staff_cost + additional_costs
 total_cost = total_raw_cost * overhead
@@ -83,12 +83,28 @@ units = total_cost / unit_price
 st.markdown(f"### Total Cost: ${total_cost:,.2f}")
 st.markdown(f"### Total Units: {units:.2f}")
 
-# Pie chart
+# Pie Chart
 import matplotlib.pyplot as plt
 labels = ["Staff Cost", "Additional Costs", "Overhead"]
 values = [staff_cost, additional_costs, total_cost - staff_cost - additional_costs]
-
 fig, ax = plt.subplots()
 ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
 ax.axis("equal")
 st.pyplot(fig)
+
+# Sprint Summary Generator
+st.subheader("📋 Sprint Summary Generator")
+sprint_name = st.text_input("Sprint Name", value=f"{task} Sprint")
+if st.button("Generate Sprint Summary"):
+    st.markdown("#### 🔹 Sprint Summary")
+    st.markdown(f"**Sprint Name:** {sprint_name}")
+    st.markdown(f"**Domain:** {domain}")
+    st.markdown(f"**Task:** {task}")
+    st.markdown(f"**Description:** {desc}")
+    st.markdown(f"**Tier 1 Hours:** {tier1_hours}")
+    st.markdown(f"**Tier 2 Hours:** {tier2_hours}")
+    st.markdown(f"**Tier 3 Hours:** {tier3_hours}")
+    st.markdown(f"**Additional Costs:** ${additional_costs:,.2f}")
+    st.markdown(f"**Overhead Multiplier:** x{overhead}")
+    st.markdown(f"**Total Cost:** ${total_cost:,.2f}")
+    st.markdown(f"**Total Units:** {units:.2f}")
