@@ -129,11 +129,6 @@ with tab2:
         client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-        for domain, tasks in domain_tasks.items():
-            for t in tasks:
-                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
-                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
-        prompt += f"\nSprint goal: {goal}"
 
         try:
             response = client.chat.completions.create(
@@ -161,11 +156,6 @@ with tab2:
         client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-        for domain, tasks in domain_tasks.items():
-            for t in tasks:
-                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
-                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
-        prompt += f"\nSprint goal: {goal}"
 
         try:
             response = client.chat.completions.create(
@@ -187,11 +177,6 @@ with tab2:
     st.subheader("🤖 GPT Sprint Planner")
 
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-        for domain, tasks in domain_tasks.items():
-            for t in tasks:
-                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
-                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
-        prompt += f"\nSprint goal: {goal}"
 
         try:
             response = client.chat.completions.create(
@@ -210,11 +195,6 @@ with tab2:
     st.subheader("🤖 GPT Sprint Planner")
 
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-        for domain, tasks in domain_tasks.items():
-            for t in tasks:
-                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
-                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
-        prompt += f"\nSprint goal: {goal}"
 
         try:
             response = openai.ChatCompletion.create(
