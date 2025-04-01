@@ -113,101 +113,6 @@ with tab1:
 
 
 # ---------------- Tab 2: GPT Planner ----------------
-
-with tab2:
-    st.subheader("🤖 GPT Sprint Planner")
-        st.markdown("Use GPT-4 to generate a suggested sprint plan based on your high-level research or business goal. The model selects from your real task menu.")
-
-    import uuid
-    if "gpt_widget_key" not in st.session_state:
-        st.session_state["gpt_widget_key"] = f"gpt_input_{uuid.uuid4()}"
-
-    goal = st.text_area("Describe your sprint goal", key=st.session_state["gpt_widget_key"])
-
-    if st.button("Generate Plan with GPT", key="generate_gpt_button"):
-        from openai import OpenAI
-        client = OpenAI(api_key=st.secrets["openai"]["api_key"])
-
-        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-
-        try:
-        response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=600
-            )
-        output = response.choices[0].message.content
-        st.markdown("### Suggested Sprint Plan")
-        st.markdown(output)
-        except Exception as e:
-        st.error(f"Error: {e}")
-
-with tab2:
-    st.subheader("🤖 GPT Sprint Planner")
-        st.markdown("Use GPT-4 to generate a suggested sprint plan based on your high-level research or business goal. The model selects from your real task menu.")
-
-    import uuid
-    if "gpt_widget_key" not in st.session_state:
-        st.session_state["gpt_widget_key"] = f"gpt_input_{uuid.uuid4()}"
-
-
-        from openai import OpenAI
-        client = OpenAI(api_key=st.secrets["openai"]["api_key"])
-
-        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-
-        try:
-        response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=600
-            )
-        output = response.choices[0].message.content
-        st.markdown("### Suggested Sprint Plan")
-        st.markdown(output)
-        except Exception as e:
-        st.error(f"Error: {e}")
-
-from openai import OpenAI
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
-
-with tab2:
-    st.subheader("🤖 GPT Sprint Planner")
-
-        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-
-        try:
-        response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=600
-            )
-        output = response.choices[0].message.content
-        st.markdown("### Suggested Sprint Plan")
-        st.markdown(output)
-        except Exception as e:
-        st.error(f"Error: {e}")
-
-with tab2:
-    st.subheader("🤖 GPT Sprint Planner")
-
-        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
-
-        try:
-        response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7, max_tokens=600
-            )
-        output = response.choices[0].message.content
-        st.markdown("### Suggested Sprint Plan")
-        st.markdown(output)
-        except Exception as e:
-        st.error(f"Error: {e}")
-
 with tab3:
     st.subheader("📊 Sprint Log")
     if st.session_state.sprint_log:
@@ -277,17 +182,17 @@ with tab5:
     ]
 
     df = pd.DataFrame(task_data)
-        st.markdown("### 🧩 Sample Tasks")
+    st.markdown("### 🧩 Sample Tasks")
     st.dataframe(df, use_container_width=True)
 
-        st.markdown("### 🔧 Cost Settings")
+    st.markdown("### 🔧 Cost Settings")
     c1, c2, c3, c4 = st.columns(4)
     t1 = c1.number_input("Tier 1 Rate", value=tier1_rate)
     t2 = c2.number_input("Tier 2 Rate", value=tier2_rate)
     t3 = c3.number_input("Tier 3 Rate", value=tier3_rate)
     oh = c4.number_input("Overhead %", value=overhead_percent)
 
-        st.markdown("### 💸 Cost Per Task (with Overhead)")
+    st.markdown("### 💸 Cost Per Task (with Overhead)")
     results = []
     for _, row in df.iterrows():
         base = row["Tier 1"] * t1 + row["Tier 2"] * t2 + row["Tier 3"] * t3
@@ -299,7 +204,40 @@ with tab5:
 
     total_cost = sum(r["Cost ($)"] for r in results)
     avg_cost = total_cost / len(results)
-        st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
+    st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
 
     proposed_price = st.slider("Try Unit Price ($)", 3000, 10000, step=250, value=int(avg_cost))
-        st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit")
+    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit")
+with tab2:
+    st.subheader("🤖 GPT Sprint Planner")
+    st.markdown("Use GPT-4 to generate a suggested sprint plan based on your high-level research or business goal. The model selects from your real task menu.")
+
+    import uuid
+    if "gpt_widget_key" not in st.session_state:
+        st.session_state["gpt_widget_key"] = f"gpt_input_{uuid.uuid4()}"
+
+    goal = st.text_area("Describe your sprint goal", key=st.session_state["gpt_widget_key"])
+
+    if st.button("Generate Plan with GPT", key="generate_gpt_button"):
+        from openai import OpenAI
+        client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+
+        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
+        for domain, tasks in domain_tasks.items():
+            for t in tasks:
+                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
+                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
+        prompt += f"\nSprint goal: {goal}"
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=600
+            )
+            output = response.choices[0].message.content
+            st.markdown("### Suggested Sprint Plan")
+            st.markdown(output)
+        except Exception as e:
+            st.error(f"Error: {e}")
