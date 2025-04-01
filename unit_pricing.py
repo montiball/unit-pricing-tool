@@ -259,4 +259,4 @@ with tab5:
     st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
 
     proposed_price = st.slider("Try Unit Price ($)", 3000, 10000, step=250, value=int(avg_cost))
-    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit")
+    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit") 
