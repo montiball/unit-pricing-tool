@@ -117,7 +117,7 @@ client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 with tab2:
     st.subheader("🤖 GPT Sprint Planner")
-    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input")
+    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input_tab2")
 
     if st.button("Generate Plan with GPT"):
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
@@ -142,7 +142,7 @@ with tab2:
 
 with tab2:
     st.subheader("🤖 GPT Sprint Planner")
-    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input")
+    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input_tab2")
 
     if st.button("Generate Plan with GPT"):
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
@@ -259,4 +259,4 @@ with tab5:
     st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
 
     proposed_price = st.slider("Try Unit Price ($)", 3000, 10000, step=250, value=int(avg_cost))
-    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit") 
+    st.markdown(f"#### 🔢 Each Task Would Use ~{avg_cost / proposed_price:.2f} Units at ${proposed_price} per Unit")
