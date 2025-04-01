@@ -255,7 +255,7 @@ with tab5:
     st.dataframe(result_df, use_container_width=True)
 
     total_cost = sum(r["Cost ($)"] for r in results)
-    avg_cost = total_cost / len(results) 
+    avg_cost = total_cost / len(results)
     st.markdown(f"### 📊 Average Task Cost: **${avg_cost:,.2f}**")
 
     proposed_price = st.slider("Try Unit Price ($)", 3000, 10000, step=250, value=int(avg_cost))
