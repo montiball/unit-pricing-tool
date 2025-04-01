@@ -68,7 +68,7 @@ st.markdown(f"### Total Units: {units:.2f}")
 import matplotlib.pyplot as plt
 
 labels = ["Staff Cost", "Additional Costs", "Overhead"]
-values = [staff_cost, additional_costs, total_cost - staff_cost - additional_costs]
+values = [staff_cost, additional_costs, total_cost - staff_cost - additional_costs] 
 
 fig, ax = plt.subplots()
 ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
