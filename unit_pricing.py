@@ -1,110 +1,153 @@
 
 import streamlit as st
-
-st.set_page_config(page_title="Agile Unit Pricing Tool", layout="centered")
-
-st.title("Agile Unit Pricing Tool")
-
-# Define tasks with descriptions and default hours
-domain_tasks = {
-    "Discovery & Design": {
-        "Landscape Scan": ("Brief lit or market scan with synthesis", 1, 2, 4),
-        "Discovery Workshop": ("Collaborative session to identify goals, needs, and framing", 1, 2, 2),
-        "Journey Mapping": ("Document user experience over time to find friction points", 1, 3, 4),
-        "Persona Development": ("Create evidence-informed user personas", 1, 2, 3),
-        "Sprint Design": ("Scope and frame a targeted research sprint or pilot", 1, 1, 2),
-    },
-    "User & Stakeholder Research": {
-        "Focus Group (1x)": ("Recruit, moderate, and analyze 1 focus group", 1, 2, 8),
-        "Stakeholder Interviews": ("Conduct up to 5 interviews and synthesize insights", 1, 3, 6),
-        "Survey Design + Launch": ("Build, launch, and summarize a short survey", 1, 3, 5),
-        "Co-Design Session": ("Work session with users/stakeholders to test ideas", 1, 2, 4),
-        "Usability Walkthrough": ("Moderated session with real users exploring product flow", 1, 2, 4),
-    },
-    "Prototyping & Pilot Testing": {
-        "Rapid Pilot (1-month)": ("Deploy and monitor a product/test in the real world", 2, 4, 10),
-        "Concept Testing": ("Structured feedback on early ideas via survey or interviews", 1, 3, 4),
-        "Field Test Setup": ("Define measures, prep team/tools, secure approvals", 2, 4, 6),
-        "Pilot Debrief & Learnings": ("Rapid synthesis after pilot wrap-up", 1, 2, 2),
-        "Iteration Workshop": ("Translate findings into next build or change", 1, 2, 2),
-    },
-    "Ongoing Strategic Guidance": {
-        "Advisory Session": ("1-hour strategic check-in + notes", 1, 1, 1),
-        "Deep Dive Workshop": ("Half-day session to align or synthesize", 1, 2, 2),
-        "Internal Synthesis Memo": ("Written summary of findings", 1, 1, 2),
-        "End-of-Phase Briefing": ("Visual presentation of findings and implications", 1, 2, 3),
-        "Quarterly Strategy Review": ("Planning session for next 90 days", 1, 2, 2),
-    },
-    "Implementation Feasibility & Real-World Value": {
-        "ROI Modeling": ("Estimate costs and benefits", 2, 4, 4),
-        "Adoption Barriers Mapping": ("Understand logistical/behavioral blockers", 1, 3, 4),
-        "Community Pilot (N=10–20)": ("Small test in real setting", 2, 4, 8),
-        "Trusted Messenger Testing": ("See which voices drive change", 1, 2, 3),
-        "Local Ecosystem Scan": ("Document local needs, gaps, or assets", 1, 2, 3),
-    },
-    "Regulatory & Compliance": {
-        "IRB Protocol Development": ("Full IRB submission and support docs", 2, 3, 3),
-        "IRB Amendment": ("Change to existing protocol", 1, 1, 1),
-        "Data Governance Setup": ("Review workflows for consent/privacy", 1, 2, 2),
-        "Institutional Agreements": ("Assist with DUAs, BAAs, or site onboarding", 1, 2, 2),
-        "Regulatory Strategy Advising": ("Strategic input on risk and IRB feasibility", 1, 1, 1),
-    }
-}
-
-# Sidebar for rates and overhead
-st.sidebar.header("Staff Hourly Rates")
-tier1_rate = st.sidebar.number_input("Tier 1 (Director)", value=300)
-tier2_rate = st.sidebar.number_input("Tier 2 (Leadership)", value=200)
-tier3_rate = st.sidebar.number_input("Tier 3 (Coordinator)", value=100)
-overhead = st.sidebar.slider("Overhead Multiplier", 1.0, 3.0, 2.0, 0.1)
-unit_price = st.sidebar.number_input("Unit Price ($)", value=5000)
-
-# Main UI
-st.subheader("Step 1: Choose a Domain")
-domain = st.selectbox("Domain", list(domain_tasks.keys()))
-
-st.subheader("Step 2: Choose a Task")
-task = st.selectbox("Task", list(domain_tasks[domain].keys()))
-desc, default_t1, default_t2, default_t3 = domain_tasks[domain][task]
-st.markdown(f"**Description:** {desc}")
-
-# Input Fields
-tier1_hours = st.number_input("Tier 1 Hours", value=default_t1)
-tier2_hours = st.number_input("Tier 2 Hours", value=default_t2)
-tier3_hours = st.number_input("Tier 3 Hours", value=default_t3)
-additional_costs = st.number_input("Additional Costs (e.g. incentives, travel, supplies)", value=500.0)
-
-# Cost Calculations
-staff_cost = (tier1_hours * tier1_rate) + (tier2_hours * tier2_rate) + (tier3_hours * tier3_rate)
-total_raw_cost = staff_cost + additional_costs
-total_cost = total_raw_cost * overhead
-units = total_cost / unit_price
-
-st.markdown(f"### Total Cost: ${total_cost:,.2f}")
-st.markdown(f"### Total Units: {units:.2f}")
-
-# Pie Chart
+import openai
 import matplotlib.pyplot as plt
-labels = ["Staff Cost", "Additional Costs", "Overhead"]
-values = [staff_cost, additional_costs, total_cost - staff_cost - additional_costs]
-fig, ax = plt.subplots()
-ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-ax.axis("equal")
-st.pyplot(fig)
+import pandas as pd
+import json
+from io import StringIO
 
-# Sprint Summary Generator
-st.subheader("📋 Sprint Summary Generator")
-sprint_name = st.text_input("Sprint Name", value=f"{task} Sprint")
-if st.button("Generate Sprint Summary"):
-    st.markdown("#### 🔹 Sprint Summary")
-    st.markdown(f"**Sprint Name:** {sprint_name}")
-    st.markdown(f"**Domain:** {domain}")
-    st.markdown(f"**Task:** {task}")
+st.set_page_config(page_title="Agile Sprint App", layout="centered")
+st.title("Agile Sprint Planning App")
+
+openai.api_key = st.secrets["openai"]["api_key"]
+
+tab1, tab2, tab3 = st.tabs(["🧩 Manual Builder", "🤖 GPT Planner", "📊 Sprint Log"])
+
+# Sidebar settings
+with st.sidebar:
+    st.header("Staff Rates & Settings")
+    tier1_rate = st.number_input("Tier 1 (Director)", value=300)
+    tier2_rate = st.number_input("Tier 2 (Leadership)", value=200)
+    tier3_rate = st.number_input("Tier 3 (Coordinator)", value=100)
+    overhead_percent = st.number_input("Overhead (%)", min_value=0, max_value=100, value=39)
+    unit_price = st.number_input("Unit Price ($)", value=5000)
+
+# Session state
+if "sprint_log" not in st.session_state:
+    st.session_state["sprint_log"] = []
+
+if "gpt_tasks" not in st.session_state:
+    st.session_state["gpt_tasks"] = []
+
+# Tab 1 - Manual Builder
+with tab1:
+    st.header("🧩 Manual Sprint Builder")
+
+    domain_tasks = {
+        "User & Stakeholder Research": {
+            "Focus Group (1x)": ("Recruit, moderate, and analyze 1 focus group", 1, 2, 8),
+            "Stakeholder Interviews": ("Conduct up to 5 interviews and synthesize insights", 1, 3, 6),
+        },
+        "Regulatory & Compliance": {
+            "IRB Protocol Development": ("Full IRB submission and support docs", 2, 3, 3),
+            "IRB Amendment": ("Change to existing protocol", 1, 1, 1),
+        }
+    }
+
+    domain = st.selectbox("Domain", list(domain_tasks.keys()))
+    task = st.selectbox("Task", list(domain_tasks[domain].keys()))
+    desc, t1, t2, t3 = domain_tasks[domain][task]
     st.markdown(f"**Description:** {desc}")
-    st.markdown(f"**Tier 1 Hours:** {tier1_hours}")
-    st.markdown(f"**Tier 2 Hours:** {tier2_hours}")
-    st.markdown(f"**Tier 3 Hours:** {tier3_hours}")
-    st.markdown(f"**Additional Costs:** ${additional_costs:,.2f}")
-    st.markdown(f"**Overhead Multiplier:** x{overhead}")
-    st.markdown(f"**Total Cost:** ${total_cost:,.2f}")
-    st.markdown(f"**Total Units:** {units:.2f}")
+
+    tier1_hours = st.number_input("Tier 1 Hours", value=t1)
+    tier2_hours = st.number_input("Tier 2 Hours", value=t2)
+    tier3_hours = st.number_input("Tier 3 Hours", value=t3)
+    additional_costs = st.number_input("Additional Costs", value=500.0)
+
+    staff_cost = (tier1_hours * tier1_rate) + (tier2_hours * tier2_rate) + (tier3_hours * tier3_rate)
+    total_raw_cost = staff_cost + additional_costs
+    total_cost = total_raw_cost * (1 + overhead_percent / 100)
+    units = total_cost / unit_price
+
+    st.markdown(f"### Total Cost: ${total_cost:,.2f}")
+    st.markdown(f"### Total Units: {units:.2f}")
+
+    if st.button("➕ Add to Sprint Log"):
+        st.session_state.sprint_log.append({
+            "Domain": domain,
+            "Task": task,
+            "Units": round(units, 2),
+            "Cost": round(total_cost, 2)
+        })
+        st.success("Task added to Sprint Log ✅")
+
+# Tab 2 - GPT Planner with Add-to-Log
+with tab2:
+    st.header("🤖 GPT Sprint Planner")
+    goal = st.text_area("Describe your sprint goal")
+
+    if st.button("Generate GPT Plan"):
+        with st.spinner("Thinking..."):
+            messages = [
+                {"role": "system", "content": "You are a research strategist. When given a sprint goal, return a list of 2–4 recommended research tasks categorized by agile domain (Discovery & Design, User & Stakeholder Research, etc.). Format each suggestion as: Domain - Task Name (x units): short description"},
+                {"role": "user", "content": f"My sprint goal is: {goal}"}
+            ]
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=700
+                )
+                output = response.choices[0].message.content
+                st.session_state["gpt_tasks"] = []
+
+                st.markdown("### Suggested Sprint Plan")
+                for line in output.split("\n"):
+                    if "-" in line and ":" in line and "(" in line:
+                        domain_task, desc = line.split(":")
+                        domain, task_units = domain_task.split("-", 1)
+                        task = task_units.split("(")[0].strip()
+                        unit_str = task_units.split("(")[1].split(")")[0].replace("x", "").strip()
+                        units = float(unit_str) if unit_str.replace('.', '', 1).isdigit() else 1.0
+                        st.session_state["gpt_tasks"].append({"Domain": domain.strip(), "Task": task, "Units": units, "Cost": units * unit_price})
+                
+                for idx, item in enumerate(st.session_state["gpt_tasks"]):
+                    if st.checkbox(f"Add: {item['Domain']} - {item['Task']} ({item['Units']} units)", key=f"gpt_add_{idx}"):
+                        st.session_state.sprint_log.append(item)
+                        st.success(f"Added '{item['Task']}' to Sprint Log")
+
+            except Exception as e:
+                st.error(f"GPT error: {e}")
+
+# Tab 3 - Sprint Log with Edit, Export, Visualization
+with tab3:
+    st.header("📊 Sprint Log")
+
+    if len(st.session_state.sprint_log) == 0:
+        st.info("No tasks have been added to the Sprint Log yet.")
+    else:
+        df = pd.DataFrame(st.session_state.sprint_log)
+        total_units = df["Units"].sum()
+        total_cost = df["Cost"].sum()
+
+        st.markdown(f"### Total Units Used: {total_units:.2f}")
+        st.markdown(f"### Total Cost: ${total_cost:,.2f}")
+        st.dataframe(df, use_container_width=True)
+
+        # Pie chart by domain
+        domain_summary = df.groupby("Domain")["Units"].sum()
+        fig, ax = plt.subplots()
+        ax.pie(domain_summary, labels=domain_summary.index, autopct="%1.1f%%", startangle=90)
+        ax.axis("equal")
+        st.pyplot(fig)
+
+        # Export buttons
+        st.download_button("📥 Export as CSV", data=df.to_csv(index=False), file_name="sprint_log.csv", mime="text/csv")
+        st.download_button("📥 Export as Markdown", data=df.to_markdown(index=False), file_name="sprint_log.md", mime="text/markdown")
+
+        # Save & load
+        st.markdown("### 💾 Save or Load Log")
+        if st.download_button("⬇️ Download Sprint Log (JSON)", data=json.dumps(st.session_state.sprint_log), file_name="sprint_log.json"):
+            st.success("Log downloaded.")
+        uploaded_file = st.file_uploader("⬆️ Upload Sprint Log (.json)", type="json")
+        if uploaded_file:
+            st.session_state.sprint_log = json.load(uploaded_file)
+            st.success("Sprint log loaded!")
+
+        # Delete rows
+        st.markdown("### 🗑 Remove a Task")
+        for i, entry in enumerate(st.session_state.sprint_log):
+            if st.button(f"Remove '{entry['Task']}'", key=f"del_{i}"):
+                st.session_state.sprint_log.pop(i)
+                st.rerun()
