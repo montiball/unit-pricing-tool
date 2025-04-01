@@ -117,7 +117,7 @@ client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 with tab2:
     st.subheader("🤖 GPT Sprint Planner")
-    goal = st.text_area("Describe your sprint goal")
+    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input")
 
     if st.button("Generate Plan with GPT"):
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
@@ -142,7 +142,7 @@ with tab2:
 
 with tab2:
     st.subheader("🤖 GPT Sprint Planner")
-    goal = st.text_area("Describe your sprint goal")
+    goal = st.text_area("Describe your sprint goal", key="gpt_goal_input")
 
     if st.button("Generate Plan with GPT"):
         prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
