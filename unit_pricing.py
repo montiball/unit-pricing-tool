@@ -150,4 +150,4 @@ with tab3:
         for i, entry in enumerate(st.session_state.sprint_log):
             if st.button(f"Remove '{entry['Task']}'", key=f"del_{i}"):
                 st.session_state.sprint_log.pop(i)
-                st.rerun()
+                st.rerun() 
