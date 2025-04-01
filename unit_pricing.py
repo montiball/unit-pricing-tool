@@ -6,18 +6,15 @@ import matplotlib.pyplot as plt
 import random
 import json
 
-# Page config
 st.set_page_config(page_title="Agile Sprint Planner", layout="centered")
-st.markdown("## 🧠 Agile Sprint Planning Tool")
-st.caption("A unit-based approach for research & strategic collaboration")
+st.title("🧠 Agile Sprint Planning Tool")
+st.caption("Use units to design, price, and simulate strategic research sprints")
 
-# Load OpenAI API key
 openai.api_key = st.secrets["openai"]["api_key"]
 
-# Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🧩 Manual Builder", "🤖 GPT Planner", "📊 Sprint Log", "📈 Simulation"])
 
-# Sidebar Settings
+# Global settings
 with st.sidebar:
     st.header("🔧 Settings")
     tier1_rate = st.number_input("Tier 1 (Director)", value=300)
@@ -26,47 +23,141 @@ with st.sidebar:
     overhead_percent = st.number_input("Overhead (%)", 0, 100, 39)
     unit_price = st.number_input("Unit Price ($)", value=5000)
 
-# Domain/Task Structure
+if "sprint_log" not in st.session_state:
+    st.session_state.sprint_log = []
+
+if "gpt_tasks" not in st.session_state:
+    st.session_state.gpt_tasks = []
+
+# Task Library
 domain_tasks = {
     "Discovery & Design": [
-        ("Landscape Scan", "Brief lit or market scan with synthesis", 1, 2, 4, ["scan", "research"]),
-        ("Discovery Workshop", "Collaborative session to identify goals and needs", 1, 2, 2, ["goals", "framing"]),
-        ("Journey Mapping", "Document user experience over time", 1, 3, 4, ["experience", "touchpoint"])
+        ("Landscape Scan", "Brief lit or market scan", 1, 2, 4, ["scan", "research"]),
+        ("Discovery Workshop", "Identify goals and needs", 1, 2, 2, ["goals", "framing"]),
+        ("Journey Mapping", "User experience mapping", 1, 3, 4, ["experience"])
     ],
     "User & Stakeholder Research": [
-        ("Focus Group", "Moderated group discussion", 1, 2, 8, ["focus group", "discussion"]),
-        ("Stakeholder Interviews", "1:1 interviews to uncover insights", 1, 3, 6, ["interview", "stakeholder"]),
-        ("Survey Design + Launch", "Deploy and analyze a survey", 1, 3, 5, ["survey", "form"])
+        ("Focus Group", "Moderated discussion with users", 1, 2, 8, ["focus group", "discussion"]),
+        ("Stakeholder Interviews", "1:1 interviews for insights", 1, 3, 6, ["interview"]),
+        ("Survey Design + Launch", "Deploy and analyze survey", 1, 3, 5, ["survey"])
     ],
     "Prototyping & Pilot Testing": [
-        ("Rapid Pilot", "Deploy product in real world", 2, 4, 10, ["pilot", "deploy"]),
-        ("Concept Testing", "Structured early feedback", 1, 3, 4, ["concept", "prototype"])
+        ("Rapid Pilot", "Deploy test in real world", 2, 4, 10, ["pilot"]),
+        ("Concept Testing", "Get feedback on early ideas", 1, 3, 4, ["concept"])
     ],
     "Ongoing Strategic Guidance": [
-        ("Advisory Session", "1-hour strategy check-in", 1, 1, 1, ["advisory", "check-in"]),
-        ("End-of-Phase Briefing", "Summary and implications", 1, 2, 3, ["brief", "findings"])
+        ("Advisory Session", "1-hour strategic check-in", 1, 1, 1, ["advisory"]),
+        ("End-of-Phase Briefing", "Presentation of findings", 1, 2, 3, ["briefing"])
     ],
     "Implementation Feasibility & Real-World Value": [
-        ("ROI Modeling", "Estimate costs and benefits", 2, 4, 4, ["roi", "cost benefit"]),
-        ("Community Pilot", "Test in local setting", 2, 4, 8, ["community", "pilot"])
+        ("ROI Modeling", "Estimate costs and benefits", 2, 4, 4, ["roi"]),
+        ("Community Pilot", "Test in local setting", 2, 4, 8, ["community"])
     ],
     "Regulatory & Compliance": [
-        ("IRB Protocol Development", "Initial IRB submission", 2, 3, 3, ["irb", "protocol"]),
-        ("IRB Amendment", "Modify existing IRB", 1, 1, 1, ["amendment", "update"])
+        ("IRB Protocol Development", "Full IRB submission", 2, 3, 3, ["irb"]),
+        ("IRB Amendment", "Modify existing protocol", 1, 1, 1, ["amendment"])
     ]
 }
 
-# ----- Tab 4: Simulation -----
+# ---------------- Tab 1: Manual Builder ----------------
+with tab1:
+    st.subheader("🧩 Manual Sprint Builder")
+    domain = st.selectbox("Domain", list(domain_tasks.keys()))
+    task_list = domain_tasks[domain]
+    task_names = [t[0] for t in task_list]
+    task_choice = st.selectbox("Task", task_names)
+
+    selected = [t for t in task_list if t[0] == task_choice][0]
+    desc, t1, t2, t3 = selected[1], selected[2], selected[3], selected[4]
+    st.markdown(f"**Description:** {desc}")
+
+    # Focus Group smart config
+    if task_choice == "Focus Group":
+        num_fg = st.number_input("Number of Focus Groups", 1, 10, 1)
+        is_new = st.radio("New topic/theme?", ["Yes", "No"])
+        irb_amend = st.checkbox("IRB Amendment Needed", value=False)
+
+        setup_t1 = 1 if is_new == "Yes" else 0
+        setup_t2 = 2 if is_new == "Yes" else 0
+        setup_t3 = 2 if is_new == "Yes" else 0
+        irb_cost = 1000 if is_new == "Yes" else 0
+        if irb_amend:
+            irb_cost += 500
+
+        tier1_hours = setup_t1
+        tier2_hours = setup_t2
+        tier3_hours = setup_t3 + (6 * num_fg)
+        additional_costs = st.number_input("Other Costs (travel, incentives)", value=500.0 * num_fg)
+    else:
+        tier1_hours = st.number_input("Tier 1 Hours", value=t1)
+        tier2_hours = st.number_input("Tier 2 Hours", value=t2)
+        tier3_hours = st.number_input("Tier 3 Hours", value=t3)
+        additional_costs = st.number_input("Other Costs (travel, incentives)", value=500.0)
+        irb_cost = 0
+
+    staff_cost = (tier1_hours * tier1_rate + tier2_hours * tier2_rate + tier3_hours * tier3_rate)
+    total_raw = staff_cost + additional_costs + irb_cost
+    total_cost = total_raw * (1 + overhead_percent / 100)
+    total_units = total_cost / unit_price
+
+    st.markdown(f"**Total Cost:** ${total_cost:,.2f}")
+    st.markdown(f"**Total Units:** {total_units:.2f}")
+
+    if st.button("➕ Add to Sprint Log"):
+        name = f"{num_fg}x Focus Group ({'New' if is_new == 'Yes' else 'Repeat'})" if task_choice == "Focus Group" else task_choice
+        st.session_state.sprint_log.append({
+            "Domain": domain, "Task": name, "Units": round(total_units, 2), "Cost": round(total_cost, 2)
+        })
+        st.success("Task added ✅")
+
+# ---------------- Tab 2: GPT Planner ----------------
+with tab2:
+    st.subheader("🤖 GPT Sprint Planner")
+    goal = st.text_area("Describe your sprint goal")
+
+    if st.button("Generate Plan with GPT"):
+        prompt = "Choose 2–4 tasks from this library to match the following goal:\n"
+        for domain, tasks in domain_tasks.items():
+            for t in tasks:
+                units = ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price
+                prompt += f"- {domain}: {t[0]} ({units:.1f} units): {t[1]}\n"
+        prompt += f"\nSprint goal: {goal}"
+
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7, max_tokens=600
+            )
+            output = response.choices[0].message.content
+            st.markdown("### Suggested Sprint Plan")
+            st.markdown(output)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# ---------------- Tab 3: Sprint Log ----------------
+with tab3:
+    st.subheader("📊 Sprint Log")
+    if st.session_state.sprint_log:
+        df = pd.DataFrame(st.session_state.sprint_log)
+        st.dataframe(df, use_container_width=True)
+        st.markdown(f"**Total Units Used:** {df['Units'].sum():.2f}")
+        st.markdown(f"**Total Cost:** ${df['Cost'].sum():,.2f}")
+        st.download_button("📥 Download CSV", df.to_csv(index=False), file_name="sprint_log.csv")
+    else:
+        st.info("No tasks in sprint log yet.")
+
+# ---------------- Tab 4: Simulation ----------------
 with tab4:
     st.subheader("📈 Strategic Simulation")
     col1, col2 = st.columns(2)
     with col1:
-        total_units = st.number_input("Total Annual Units", value=100)
+        annual_units = st.number_input("Total Annual Units", value=100)
     with col2:
         quarters = st.number_input("Number of Quarters", value=4, min_value=1)
 
-    theme = st.text_input("Optional Sprint Goal or Theme")
-    simulate_btn = st.button("🔮 Run Simulation")
+    theme = st.text_input("Optional Theme or Goal")
+    sim_btn = st.button("🔮 Run Simulation")
 
     def weight_tasks(theme_text):
         weights = []
@@ -75,42 +166,29 @@ with tab4:
                 score = sum(1 for word in keywords if word in theme_text.lower())
                 units = ((t1 * tier1_rate + t2 * tier2_rate + t3 * tier3_rate) * (1 + overhead_percent / 100)) / unit_price
                 weights.append((domain, name, units, score))
-        weights.sort(key=lambda x: (-x[3], x[2]))
-        return weights
+        return sorted(weights, key=lambda x: (-x[3], x[2]))
 
-    if simulate_btn:
-        st.markdown("### 🔍 Simulated Plan")
-        if theme:
-            st.markdown(f"**Theme:** _{theme}_")
-
-        unit_per_q = total_units / quarters
-        plan = []
-        total_used = 0
+    if sim_btn:
+        unit_per_q = annual_units / quarters
         task_pool = weight_tasks(theme) if theme else [
             (d, t[0], ((t[2]*tier1_rate + t[3]*tier2_rate + t[4]*tier3_rate)*(1 + overhead_percent/100))/unit_price, 0)
             for d, tasks in domain_tasks.items() for t in tasks
         ]
 
+        plan, used = [], 0
         for q in range(quarters):
-            used = 0
-            for domain, task, units, _ in task_pool:
-                if used + units <= unit_per_q:
-                    plan.append({"Quarter": f"Q{q+1}", "Domain": domain, "Task": task, "Units": round(units, 2)})
-                    used += units
-                    total_used += units
+            uq = 0
+            for d, t, u, _ in task_pool:
+                if uq + u <= unit_per_q:
+                    plan.append({"Quarter": f"Q{q+1}", "Domain": d, "Task": t, "Units": round(u, 2)})
+                    uq += u
+                    used += u
 
         df = pd.DataFrame(plan)
-        st.markdown("#### 🧩 Task Breakdown")
+        st.markdown("#### Simulated Plan")
         st.dataframe(df, use_container_width=True)
+        st.markdown(f"**Total Units Used:** {used:.2f} / {annual_units}")
+        st.markdown(f"**Avg Units per Quarter:** {used / quarters:.2f}")
 
-        st.markdown(f"#### 📊 Total Units Used: **{total_used:.2f} / {total_units}**")
-        st.markdown(f"#### ⏱ Avg Units per Quarter: **{total_used / quarters:.2f}**")
-
-        st.markdown("#### 🗂 Units by Domain")
-        domain_sum = df.groupby("Domain")["Units"].sum().reset_index()
-        st.dataframe(domain_sum)
-
-        if total_used <= total_units:
-            st.success("✅ Plan fits within unit budget.")
-        else:
-            st.warning("⚠️ Plan exceeds total available units.") 
+        st.markdown("#### Units by Domain")
+        st.dataframe(df.groupby("Domain")["Units"].sum().reset_index())
