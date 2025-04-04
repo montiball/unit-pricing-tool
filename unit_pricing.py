@@ -22,7 +22,7 @@ tab0, tab1, tab2, tab3 = st.tabs([
     "📋 Scope Setup", "🧩 Manual Builder", "📊 Sprint Log", "📤 Exports"
 ])
 
-# Global settings
+# Global settings in the sidebar
 with st.sidebar:
     st.header("🔧 Settings")
     tier1_rate = st.number_input("Tier 1 (Director)", value=300)
@@ -34,40 +34,75 @@ with st.sidebar:
 if "sprint_log" not in st.session_state:
     st.session_state.sprint_log = []
 
-
-
 # ---------------- Tab 0: Scope Setup (Updated with duration + budget) ----------------
 with tab0:
     st.subheader("📋 Define Project Scope")
     st.markdown("Fill out initial project info to inform planning and exports.")
 
-                                    scope_info = st.session_state.scope_info if 'scope_info' in st.session_state else {}
+    scope_info = st.session_state.scope_info if "scope_info" in st.session_state else {}
 
     scope_name = st.text_input("Project Name", value=scope_info.get("Project Name", ""))
-    study_type = st.selectbox("Study Type", ["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"], index=["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"].index(scope_info.get("Study Type", "Exploratory")))
+    study_type = st.selectbox(
+        "Study Type",
+        ["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"],
+        index=["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"].index(
+            scope_info.get("Study Type", "Exploratory")
+        )
+    )
     estimated_n = st.number_input("Target Sample Size (N)", min_value=1, value=int(scope_info.get("Estimated N", 10)))
-    num_timepoints = st.selectbox("Number of Timepoints", ["1", "2–3", "4+", "Ongoing"], index=["1", "2–3", "4+", "Ongoing"].index(scope_info.get("Timepoints", "1")))
-    irb_status = st.selectbox("IRB Status", ["Not started", "Exempt", "Full Board", "Approved"], index=["Not started", "Exempt", "Full Board", "Approved"].index(scope_info.get("IRB Status", "Not started")))
-    data_methods = st.multiselect("Data Collection Methods", ["Surveys", "Interviews", "Focus Groups", "Devices", "Diaries"], default=scope_info.get("Data Methods", []))
-    incentives = st.selectbox("Use of Incentives", ["None", "$25", "$50", "$100+"], index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None")))
-                                    tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))))
-                                timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))))
-                                            study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6))), 6)))", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
-                                            budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000))), min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
+    num_timepoints = st.selectbox(
+        "Number of Timepoints",
+        ["1", "2–3", "4+", "Ongoing"],
+        index=["1", "2–3", "4+", "Ongoing"].index(scope_info.get("Timepoints", "1"))
+    )
+    irb_status = st.selectbox(
+        "IRB Status",
+        ["Not started", "Exempt", "Full Board", "Approved"],
+        index=["Not started", "Exempt", "Full Board", "Approved"].index(scope_info.get("IRB Status", "Not started"))
+    )
+    data_methods = st.multiselect(
+        "Data Collection Methods",
+        ["Surveys", "Interviews", "Focus Groups", "Devices", "Diaries"],
+        default=scope_info.get("Data Methods", [])
+    )
+    incentives = st.selectbox(
+        "Use of Incentives",
+        ["None", "$25", "$50", "$100+"],
+        index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None"))
+    )
+    tech = st.selectbox(
+        "Tech Integration",
+        ["None", "REDCap", "mHealth Device", "App"],
+        index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None"))
+    )
+    timeline = st.selectbox(
+        "Timeline Preference",
+        ["Standard", "Expedited"],
+        index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard"))
+    )
+    study_length = st.number_input(
+        "Estimated Study Length (Months)",
+        min_value=1,
+        value=int(scope_info.get("Study Length (Months)", 6))
+    )
+    budget_estimate = st.number_input(
+        "Rough Budget Estimate ($)",
+        min_value=0,
+        value=int(scope_info.get("Budget Estimate", 100000))
+    )
 
-                                st.markdown("---")
+    st.markdown("---")
     st.markdown("### 🧱 Optional: Define Key Milestones / Sprints")
     st.caption("These will structure your scope of work. You can leave them blank or customize.")
 
     sprint1_name = st.text_input("Sprint 1 Title", value=scope_info.get("Sprint 1 Title", "Phase 1: Qualitative Work"))
     sprint1_goal = st.text_area("Sprint 1 Goal / Summary", value=scope_info.get("Sprint 1 Goal", "Conduct focus groups and stakeholder interviews."))
-
     sprint2_name = st.text_input("Sprint 2 Title", value=scope_info.get("Sprint 2 Title", "Phase 2: In-Home Data Collection"))
     sprint2_goal = st.text_area("Sprint 2 Goal / Summary", value=scope_info.get("Sprint 2 Goal", "Collect at-home data using crossover device design."))
-
     sprint3_name = st.text_input("Sprint 3 Title", value=scope_info.get("Sprint 3 Title", "Phase 3: Analysis & Reporting"))
     sprint3_goal = st.text_area("Sprint 3 Goal / Summary", value=scope_info.get("Sprint 3 Goal", "Analyze results and deliver final report to partner."))
-                                                if st.button("Save / Update Scope Setup"):
+
+    if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
             "Project Name": scope_name,
             "Study Type": study_type,
@@ -92,7 +127,7 @@ with tab0:
 # ---------------- Tab 1: Manual Builder ----------------
 with tab1:
     st.subheader("🧩 Manual Builder")
-    scope = st.session_state.scope_info
+    scope = st.session_state.scope_info if "scope_info" in st.session_state else {}
 
     if task_df.empty:
         st.warning("No tasks available. Please check the uploaded task file.")
@@ -116,17 +151,17 @@ with tab1:
 
         try:
             default_t1 = int(float(task.get("Estimated Hours", 1)))
-        except:
+        except Exception:
             default_t1 = 1
         tier1_hours = st.number_input("Tier 1 Hours", value=default_t1)
         try:
             default_t2 = int(float(task.get("Tier 2 Hours", 0)))
-        except:
+        except Exception:
             default_t2 = 0
         tier2_hours = st.number_input("Tier 2 Hours", value=default_t2)
         try:
             default_t3 = int(float(task.get("Tier 3 Hours", 0)))
-        except:
+        except Exception:
             default_t3 = 0
         tier3_hours = st.number_input("Tier 3 Hours", value=default_t3)
 
@@ -167,12 +202,13 @@ with tab2:
 # ---------------- Tab 3: Export ----------------
 with tab3:
     st.subheader("📤 Export Scope of Work / Proposal")
-    scope = st.session_state.scope_info
+    scope = st.session_state.scope_info if "scope_info" in st.session_state else {}
     log = st.session_state.sprint_log
 
     if scope:
         st.markdown(f"### 📁 Project: {scope.get('Project Name', 'Untitled')}")
-        st.markdown(f"- **Study Type:** {scope.get('Study Type')}
+        st.markdown(f"""
+- **Study Type:** {scope.get('Study Type')}
 - **Sample Size (N):** {scope.get('Estimated N')}
 - **Timepoints:** {scope.get('Timepoints')}
 - **IRB:** {scope.get('IRB Status')}
@@ -186,10 +222,13 @@ with tab3:
   - {scope.get('Sprint 1 Title')}: {scope.get('Sprint 1 Goal')}
   - {scope.get('Sprint 2 Title')}: {scope.get('Sprint 2 Goal')}
   - {scope.get('Sprint 3 Title')}: {scope.get('Sprint 3 Goal')}
-")
+        """)
+    else:
+        st.info("No project scope defined yet.")
 
     st.markdown("---")
-                                                                        st.markdown("### 🧩 Task Breakdown")
+    st.markdown("### 🧩 Task Breakdown")
+    if log:
         for task in log:
             st.markdown(f"**{task['Task']}** — Est. {task['Units']} units (${task['Cost']})")
             desc = task_df[task_df["Task Name"] == task["Task"]]["Longer Description (SOW)"]
