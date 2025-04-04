@@ -189,4 +189,4 @@ with tab3:
             if not desc.empty:
                 st.markdown(desc.iloc[0])
     else:
-        st.info("No tasks added to sprint log yet.")
+        st.info("No tasks added to sprint log yet.") 
