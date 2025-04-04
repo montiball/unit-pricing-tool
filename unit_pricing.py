@@ -25,21 +25,6 @@ with st.sidebar:
 
 # ----------------- Running Cost Summary Container in Sidebar -----------------
 cost_container = st.sidebar.container()
-with cost_container:
-    st.markdown("### Running Project Cost Summary")
-    if st.session_state.sprint_log:
-        df_log = pd.DataFrame(st.session_state.sprint_log)
-        if "Direct Cost" not in df_log.columns:
-            df_log["Direct Cost"] = 0
-        total_direct_cost = df_log["Direct Cost"].sum()
-        overhead_amount = total_direct_cost * (overhead_percent / 100)
-        total_project_cost = total_direct_cost + overhead_amount
-        st.write(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
-        st.write(f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}")
-        st.write(f"**Total Project Cost:** ${total_project_cost:,.2f}")
-    else:
-        st.write("No tasks added yet.")
-
 
 # ----------------- Initialize Session State -----------------
 if "sprint_log" not in st.session_state:
@@ -48,9 +33,8 @@ if "scope_info" not in st.session_state:
     st.session_state.scope_info = {}
 if "task_modifiers" not in st.session_state:
     st.session_state.task_modifiers = {}
-# We'll store phases as a list of dictionaries.
 if "phases" not in st.session_state:
-    st.session_state.phases = []
+    st.session_state.phases = []  # List of phase dictionaries
 
 # ----------------- Default Template Cost Function -----------------
 def compute_task_cost(task_category, subcategory, num_units, custom_overrides=None):
@@ -377,10 +361,8 @@ with tab2:
         st.markdown("### Broad Project Goals")
         st.markdown(scope.get("Project Goals", ""))
     
-    # Display tasks with remove/edit capabilities
     if st.session_state.sprint_log:
         st.markdown("### Project Cart")
-        # Iterate over tasks and include a Remove button for each.
         for idx, task in enumerate(st.session_state.sprint_log):
             col1, col2 = st.columns([8, 2])
             with col1:
@@ -400,11 +382,9 @@ with tab2:
         st.markdown(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
         st.markdown(f"**Overhead:** ${overhead_amount:,.2f}")
         st.markdown(f"**Total Project Cost:** ${total_project_cost:,.2f}")
-        # Warning if cost exceeds budget
         if scope and total_project_cost > scope.get("Budget Estimate", float('inf')):
             st.warning("Total project cost exceeds your rough budget estimate. Consider adjusting your cart.")
         
-        # Charts
         cost_by_category = df_log.groupby("Category")["Direct Cost"].sum().reset_index()
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.bar(cost_by_category["Category"], cost_by_category["Direct Cost"])
@@ -527,13 +507,13 @@ with tab3:
         prompt = generate_ai_prompt(scope, sprint_log)
         st.markdown("**Prompt sent to AI:**")
         st.code(prompt)
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=1500,
             temperature=0.7
         )
-        ai_proposal = response.choices[0].text.strip()
+        ai_proposal = response.choices[0].message.content.strip()
         st.text_area("AI-Generated Proposal", ai_proposal, height=400)
     
     if st.button("Generate Proposal Document"):
