@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import date
 from dateutil.relativedelta import relativedelta
+import openai
+
+# Set your OpenAI API key from secrets (ensure it's stored securely)
+openai.api_key = st.secrets["openai"]["api_key"]
 
 # ----------------- Page Configuration -----------------
 st.set_page_config(page_title="Dynamic Research Project Scoping Tool", layout="wide")
@@ -45,7 +49,6 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     Returns:
         labor_cost, tier1_hours, tier2_hours, tier3_hours
     """
-    # Default templates by category and subcategory
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
             defaults = {
@@ -66,11 +69,9 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     else:
         defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
     
-    # Apply custom overrides if provided
     if custom_overrides:
         defaults.update(custom_overrides)
     
-    # Calculate hours based on category/subcategory
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
             tier1_hours = defaults.get("tier1_fixed", 2)
@@ -184,12 +185,10 @@ with tab0:
     st.subheader("Define Project Scope")
     st.markdown("Enter high-level project details that will inform your proposal and planning. These details will automatically influence other sections of the app.")
     
-    # Basic project info
     project_name = st.text_input("Project Name", value=st.session_state.scope_info.get("Project Name", ""))
     project_description = st.text_area("Project Description", value=st.session_state.scope_info.get("Project Description", ""))
     partner_name = st.text_input("Partner Name", value=st.session_state.scope_info.get("Partner Name", ""))
     
-    # More specific project types
     project_type = st.selectbox("Project Type", 
                                 ["Pilot Study", "Cross-sectional", "Longitudinal", "Mixed Methods", "Experimental", 
                                  "Evaluation", "Education", "Training", "Strategic Guidance", "Other"],
@@ -202,7 +201,6 @@ with tab0:
     timeline_preference = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=0)
     
     project_start_date = st.date_input("Project Start Date", value=st.session_state.scope_info.get("Project Start Date", date.today()))
-    # Automatically compute end date based on study length
     project_end_date = project_start_date + relativedelta(months=study_length)
     st.markdown(f"**Computed Project End Date:** {project_end_date}")
     
@@ -210,7 +208,6 @@ with tab0:
     st.markdown("### Define Project Phases / Milestones")
     st.markdown("Add as many phases as needed. Each phase is for internal planning and proposal structuring.")
     
-    # Display current phases using expanders
     if st.session_state.phases:
         for idx, phase in enumerate(st.session_state.phases):
             with st.expander(f"Phase {idx+1}: {phase.get('Title', 'New Phase')}"):
@@ -297,7 +294,7 @@ with tab1:
     if st.checkbox("Edit Task Details"):
         new_est_hours = st.number_input("Estimated Hours", value=effective_hours, key="edit_est_hours")
         new_base_cost = st.number_input("Base Cost", value=effective_base_cost, key="edit_base_cost")
-        new_complexity = st.selectbox("Complexity", ["Low", "Medium", "High"], 
+        new_complexity = st.selectbox("Complexity", ["Low", "Medium", "High"],
                                       index=["Low", "Medium", "High"].index(effective_complexity) if effective_complexity in ["Low", "Medium", "High"] else 1, key="edit_complexity")
         new_notes = st.text_area("Notes", value=effective_notes, key="edit_notes")
         if st.button("Save Task Details", key="save_task_details"):
@@ -320,8 +317,7 @@ with tab1:
         if task_info["Subcategory"] == "Self-Reported Survey":
             num_units = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
             labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
-            # Direct cost computed without overhead
-            direct_cost = labor_cost
+            direct_cost = labor_cost  # Direct cost (without overhead)
             st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
             st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
             st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
@@ -362,7 +358,6 @@ with cost_container:
     st.markdown("### Running Project Cost Summary")
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
-        # Ensure "Direct Cost" exists
         if "Direct Cost" not in df_log.columns:
             df_log["Direct Cost"] = 0
         total_direct_cost = df_log["Direct Cost"].sum()
@@ -399,7 +394,6 @@ with tab2:
     
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
-        # Ensure "Direct Cost" exists
         if "Direct Cost" not in df_log.columns:
             df_log["Direct Cost"] = 0
         st.dataframe(df_log, use_container_width=True)
@@ -411,7 +405,6 @@ with tab2:
         st.markdown(f"**Overhead:** ${overhead_amount:,.2f}")
         st.markdown(f"**Total Project Cost:** ${total_project_cost:,.2f}")
         
-        # Bar chart by category
         cost_by_category = df_log.groupby("Category")["Direct Cost"].sum().reset_index()
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.bar(cost_by_category["Category"], cost_by_category["Direct Cost"])
@@ -420,7 +413,6 @@ with tab2:
         ax.set_title("Direct Cost by Category")
         st.pyplot(fig)
         
-        # Pie chart by phase
         if "Phase" in df_log.columns and df_log["Phase"].notna().any():
             cost_by_phase = df_log.groupby("Phase")["Direct Cost"].sum()
             fig2, ax2 = plt.subplots()
@@ -428,7 +420,6 @@ with tab2:
             ax2.set_title("Direct Cost Distribution by Phase")
             st.pyplot(fig2)
         
-        # Gantt chart for phases
         phases_list = [phase for phase in st.session_state.phases if phase.get("Title")]
         if phases_list:
             st.markdown("### Project Timeline (Gantt Chart)")
@@ -486,59 +477,119 @@ with tab3:
     else:
         st.info("No tasks added to the project.")
     
-    def generate_proposal(scope, sprint_log):
-        proposal = ""
-        proposal += "# Proposal for " + scope.get("Project Name", "Untitled Project") + "\n\n"
-        proposal += "## Introduction\n"
-        proposal += ("This proposal outlines our comprehensive approach for the project, including methodology, timeline, and cost breakdown. "
-                     "Our team is committed to delivering high-quality outcomes tailored to your needs.\n\n")
-        proposal += "## Project Overview\n"
-        proposal += f"- **Partner:** {scope.get('Partner Name', '')}\n"
-        proposal += f"- **Project Type:** {scope.get('Project Type', '')}\n"
-        proposal += f"- **Target Sample Size (N):** {scope.get('Estimated N', '')}\n"
-        proposal += f"- **Timeline:** {scope.get('Timeline', '')}\n"
-        proposal += f"- **Study Length (Months):** {scope.get('Study Length (Months)', '')}\n"
-        proposal += f"- **Budget Estimate:** ${scope.get('Budget Estimate', 0):,}\n"
-        proposal += f"- **Project Dates:** {scope.get('Project Start Date', '')} to {scope.get('Project End Date', '')}\n\n"
+    # AI Proposal Generation Section
+    def generate_ai_prompt(scope, sprint_log):
+        historical_inspiration = (
+            "Our previous proposal, 'A Vision for the Development of a Protocol for a Longitudinal Healthy Aging Study in The Villages, Florida,' "
+            "was structured around key sections including Approach, Proposed Work Plan, Project Timeline, Coordination Plan, Budget/Cost-Estimate, "
+            "Material Assumptions, Staffing and Roles, and Prior Work & Established Expertise. These themes should inspire the tone, depth, and structure "
+            "of the new proposal."
+        )
+        prompt = f"Generate a detailed, professional proposal for the following project using the provided structured data and historical inspiration.\n\n"
+        prompt += f"Project Name: {scope.get('Project Name', 'Untitled Project')}\n"
+        prompt += f"Project Description: {scope.get('Project Description', '')}\n"
+        prompt += f"Partner: {scope.get('Partner Name', 'N/A')}\n"
+        prompt += f"Project Type: {scope.get('Project Type', 'N/A')}\n"
+        prompt += f"Target Sample Size: {scope.get('Estimated N', 'N/A')}\n"
+        prompt += f"Budget: ${scope.get('Budget Estimate', 'N/A')}\n"
+        prompt += f"Study Length: {scope.get('Study Length (Months)', 'N/A')} months (from {scope.get('Project Start Date', 'N/A')} to {scope.get('Project End Date', 'N/A')})\n\n"
         
-        proposal += "## Project Phases\n"
+        prompt += "Phases:\n"
         for phase in st.session_state.phases:
             if phase.get("Title"):
-                proposal += f"### {phase['Title']}\n"
-                proposal += f"{phase['Description']}\n"
-                proposal += f"**Dates:** {phase['Start']} to {phase['End']}\n\n"
-        
-        proposal += "## Broad Project Goals\n"
-        proposal += scope.get("Project Goals", "") + "\n\n"
-        
-        proposal += "## Detailed Task Breakdown\n"
+                prompt += f"- {phase['Title']}: {phase['Description']} (from {phase['Start']} to {phase['End']})\n"
+        prompt += "\nTasks:\n"
         for task in sprint_log:
             phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
-            proposal += f"### {task['Task']} (Category: {task['Category']}){phase_info}\n"
-            proposal += f"- **Quantity:** {task['Quantity']}\n"
-            proposal += f"- **Direct Cost:** ${task['Direct Cost']}\n"
-            proposal += f"- **Total Cost (with overhead):** ${round(task['Direct Cost']*(1+overhead_percent/100),2)}\n"
+            prompt += f"- {task['Task']}{phase_info}: Quantity {task['Quantity']}, Direct Cost ${task['Direct Cost']}\n"
             if task.get("Modifiers"):
-                proposal += f"- **Modifiers:** {task['Modifiers'].get('Custom Notes', '')}\n"
-            proposal += "\n"
+                prompt += f"  - Notes: {task['Modifiers'].get('Custom Notes', '')}\n"
+        prompt += "\nCost Summary:\n"
         df_log = pd.DataFrame(sprint_log)
-        if "Direct Cost" not in df_log.columns:
-            df_log["Direct Cost"] = 0
-        total_direct_cost = df_log["Direct Cost"].sum()
+        total_direct_cost = df_log["Direct Cost"].sum() if not df_log.empty else 0
         overhead_amount = total_direct_cost * (overhead_percent / 100)
         total_project_cost = total_direct_cost + overhead_amount
-        proposal += "## Cost Breakdown\n"
-        proposal += f"**Total Direct Cost:** ${total_direct_cost:,.2f}\n\n"
-        proposal += f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}\n\n"
-        proposal += f"**Total Project Cost:** ${total_project_cost:,.2f}\n\n"
-        proposal += "## Timeline & Deliverables\n"
-        proposal += "A detailed timeline and deliverables will be provided upon project initiation.\n\n"
-        proposal += "## Conclusion\n"
-        proposal += ("Based on our experience and the defined scope, we are confident that our approach will maximize ROI "
-                     "and deliver actionable outcomes for your organization.\n\n")
-        proposal += "*(End of Proposal)*\n"
-        return proposal
+        prompt += f"Total Direct Cost: ${total_direct_cost:,.2f}\n"
+        prompt += f"Overhead ({overhead_percent}%): ${overhead_amount:,.2f}\n"
+        prompt += f"Total Project Cost: ${total_project_cost:,.2f}\n\n"
+        
+        prompt += "Historical Inspiration:\n"
+        prompt += historical_inspiration + "\n\n"
+        
+        prompt += ("Based on these details, generate a detailed proposal narrative that includes the following sections: "
+                   "Introduction, Approach, Proposed Work Plan, Project Timeline, Coordination Plan, Budget/Cost-Estimate, "
+                   "Material Assumptions, Staffing and Roles, and Prior Work & Established Expertise. The narrative should be persuasive, "
+                   "professional, and structured for a multi-page document.")
+        return prompt
+
+    if st.button("Generate Proposal with AI"):
+        scope = st.session_state.scope_info
+        sprint_log = st.session_state.sprint_log
+        prompt = generate_ai_prompt(scope, sprint_log)
+        st.markdown("**Prompt sent to AI:**")
+        st.code(prompt)
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=1500,
+            temperature=0.7
+        )
+        ai_proposal = response.choices[0].text.strip()
+        st.text_area("AI-Generated Proposal", ai_proposal, height=400)
     
     if st.button("Generate Proposal Document"):
-        proposal_text = generate_proposal(scope, sprint_log)
-        st.download_button("Download Proposal Markdown", proposal_text, file_name="proposal.md")
+        def generate_proposal(scope, sprint_log):
+            proposal = ""
+            proposal += "# Proposal for " + scope.get("Project Name", "Untitled Project") + "\n\n"
+            proposal += "## Introduction\n"
+            proposal += ("This proposal outlines our comprehensive approach for the project, including methodology, timeline, and cost breakdown. "
+                         "Our team is committed to delivering high-quality outcomes tailored to your needs.\n\n")
+            proposal += "## Project Overview\n"
+            proposal += f"- **Partner:** {scope.get('Partner Name', '')}\n"
+            proposal += f"- **Project Type:** {scope.get('Project Type', '')}\n"
+            proposal += f"- **Target Sample Size (N):** {scope.get('Estimated N', '')}\n"
+            proposal += f"- **Timeline:** {scope.get('Timeline', '')}\n"
+            proposal += f"- **Study Length (Months):** {scope.get('Study Length (Months)', '')}\n"
+            proposal += f"- **Budget Estimate:** ${scope.get('Budget Estimate', 0):,}\n"
+            proposal += f"- **Project Dates:** {scope.get('Project Start Date', '')} to {scope.get('Project End Date', '')}\n\n"
+            
+            proposal += "## Project Phases\n"
+            for phase in st.session_state.phases:
+                if phase.get("Title"):
+                    proposal += f"### {phase['Title']}\n"
+                    proposal += f"{phase['Description']}\n"
+                    proposal += f"**Dates:** {phase['Start']} to {phase['End']}\n\n"
+            
+            proposal += "## Broad Project Goals\n"
+            proposal += scope.get("Project Goals", "") + "\n\n"
+            
+            proposal += "## Detailed Task Breakdown\n"
+            for task in sprint_log:
+                phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
+                proposal += f"### {task['Task']} (Category: {task['Category']}){phase_info}\n"
+                proposal += f"- **Quantity:** {task['Quantity']}\n"
+                proposal += f"- **Direct Cost:** ${task['Direct Cost']}\n"
+                proposal += f"- **Total Cost (with overhead):** ${round(task['Direct Cost']*(1+overhead_percent/100),2)}\n"
+                if task.get("Modifiers"):
+                    proposal += f"- **Modifiers:** {task['Modifiers'].get('Custom Notes', '')}\n"
+                proposal += "\n"
+            df_log = pd.DataFrame(sprint_log)
+            if "Direct Cost" not in df_log.columns:
+                df_log["Direct Cost"] = 0
+            total_direct_cost = df_log["Direct Cost"].sum()
+            overhead_amount = total_direct_cost * (overhead_percent / 100)
+            total_project_cost = total_direct_cost + overhead_amount
+            proposal += "## Cost Breakdown\n"
+            proposal += f"**Total Direct Cost:** ${total_direct_cost:,.2f}\n\n"
+            proposal += f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}\n\n"
+            proposal += f"**Total Project Cost:** ${total_project_cost:,.2f}\n\n"
+            proposal += "## Timeline & Deliverables\n"
+            proposal += "A detailed timeline and deliverables will be provided upon project initiation.\n\n"
+            proposal += "## Conclusion\n"
+            proposal += ("Based on our experience and the defined scope, we are confident that our approach will maximize ROI "
+                         "and deliver actionable outcomes for your organization.\n\n")
+            proposal += "*(End of Proposal)*\n"
+            return proposal
+        
+        prop_text = generate_proposal(st.session_state.scope_info, st.session_state.sprint_log)
+        st.download_button("Download Proposal Markdown", prop_text, file_name="proposal.md")
