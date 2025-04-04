@@ -68,6 +68,57 @@ with tab0:
         }
         st.success("Scope setup saved or updated! Proceed to Manual Builder.")
 
+# ---------------- Tab 1: Manual Builder ----------------
+with tab1:
+    st.subheader("🧩 Manual Builder")
+    scope = st.session_state.scope_info
+
+    if task_df.empty:
+        st.warning("No tasks available. Please check the uploaded task file.")
+    else:
+        domain = st.selectbox("Domain", sorted(task_df["Category"].dropna().unique()))
+        task_subset = task_df[task_df["Category"] == domain]
+        task_name = st.selectbox("Select Task", task_subset["Task Name"].unique())
+        task = task_subset[task_subset["Task Name"] == task_name].iloc[0]
+
+        st.markdown(f"**Description:** {task['Brief Description (Visuals)']}")
+        st.markdown(f"*Domain:* {task['Category']}")
+
+        if st.checkbox("Show long proposal description"):
+            st.markdown(task["Longer Description (SOW)"])
+
+        estimated_n = scope.get("Estimated N", 10)
+        incentive_val = int(scope.get("Incentives", "$0").replace("$", "").replace("+", "") or 0)
+
+        num_participants = st.number_input("Estimated Participants", value=estimated_n)
+        use_translation = st.radio("Translation Needed?", ["No", "Yes"], index=0)
+
+        tier1_hours = st.number_input("Tier 1 Hours", value=int(task.get("Estimated Hours", 1)))
+        tier2_hours = st.number_input("Tier 2 Hours", value=0)
+        tier3_hours = st.number_input("Tier 3 Hours", value=0)
+
+        incentive_total = num_participants * incentive_val
+        other_costs = st.number_input("Other Costs (e.g., transcription, travel)", value=500.0)
+
+        base_cost = tier1_hours * tier1_rate + tier2_hours * tier2_rate + tier3_hours * tier3_rate
+        total_raw = base_cost + incentive_total + other_costs
+        total_cost = total_raw * (1 + overhead_percent / 100)
+        total_units = total_cost / unit_price
+
+        st.markdown(f"**Estimated Cost:** ${total_cost:,.2f}")
+        st.markdown(f"**Estimated Units:** {total_units:.2f}")
+
+        if st.button("➕ Add to Sprint Log"):
+            st.session_state.sprint_log.append({
+                "Domain": domain,
+                "Task": task_name,
+                "Participants": num_participants,
+                "Translation": use_translation,
+                "Units": round(total_units, 2),
+                "Cost": round(total_cost, 2)
+            })
+            st.success("Task added to sprint ✅")
+
 # ---------------- Tab 2: Sprint Log ----------------
 with tab2:
     st.subheader("📊 Sprint Log")
@@ -99,4 +150,4 @@ with tab3:
             if not desc.empty:
                 st.markdown(desc.iloc[0])
     else:
-        st.info("No tasks added to sprint log yet.") 
+        st.info("No tasks added to sprint log yet.")
