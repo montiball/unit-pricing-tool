@@ -34,10 +34,9 @@ with st.sidebar:
 if "sprint_log" not in st.session_state:
     st.session_state.sprint_log = []
 
-if "scope_info" not in st.session_state:
-    st.session_state.scope_info = {}
 
-# ---------------- Tab 0: Scope Setup ----------------
+
+# ---------------- Tab 0: Scope Setup (Updated with duration + budget) ----------------
 with tab0:
     st.subheader("📋 Define Project Scope")
     st.markdown("Fill out initial project info to inform planning and exports.")
@@ -53,7 +52,22 @@ with tab0:
     incentives = st.selectbox("Use of Incentives", ["None", "$25", "$50", "$100+"], index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None")))
     tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))
     timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))
+)
+study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
+budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
 
+    st.markdown("---")
+    st.markdown("### 🧱 Optional: Define Key Milestones / Sprints")
+    st.caption("These will structure your scope of work. You can leave them blank or customize.")
+
+    sprint1_name = st.text_input("Sprint 1 Title", value=scope_info.get("Sprint 1 Title", "Phase 1: Qualitative Work"))
+    sprint1_goal = st.text_area("Sprint 1 Goal / Summary", value=scope_info.get("Sprint 1 Goal", "Conduct focus groups and stakeholder interviews."))
+
+    sprint2_name = st.text_input("Sprint 2 Title", value=scope_info.get("Sprint 2 Title", "Phase 2: In-Home Data Collection"))
+    sprint2_goal = st.text_area("Sprint 2 Goal / Summary", value=scope_info.get("Sprint 2 Goal", "Collect at-home data using crossover device design."))
+
+    sprint3_name = st.text_input("Sprint 3 Title", value=scope_info.get("Sprint 3 Title", "Phase 3: Analysis & Reporting"))
+    sprint3_goal = st.text_area("Sprint 3 Goal / Summary", value=scope_info.get("Sprint 3 Goal", "Analyze results and deliver final report to partner."))
     if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
             "Project Name": scope_name,
@@ -93,9 +107,21 @@ with tab1:
         num_participants = st.number_input("Estimated Participants", value=estimated_n)
         use_translation = st.radio("Translation Needed?", ["No", "Yes"], index=0)
 
-        tier1_hours = st.number_input("Tier 1 Hours", value=int(task.get("Estimated Hours", 1)))
-        tier2_hours = st.number_input("Tier 2 Hours", value=0)
-        tier3_hours = st.number_input("Tier 3 Hours", value=0)
+        try:
+            default_t1 = int(float(task.get("Estimated Hours", 1)))
+        except:
+            default_t1 = 1
+        tier1_hours = st.number_input("Tier 1 Hours", value=default_t1)
+        try:
+            default_t2 = int(float(task.get("Tier 2 Hours", 0)))
+        except:
+            default_t2 = 0
+        tier2_hours = st.number_input("Tier 2 Hours", value=default_t2)
+        try:
+            default_t3 = int(float(task.get("Tier 3 Hours", 0)))
+        except:
+            default_t3 = 0
+        tier3_hours = st.number_input("Tier 3 Hours", value=default_t3)
 
         incentive_total = num_participants * incentive_val
         other_costs = st.number_input("Other Costs (e.g., transcription, travel)", value=500.0)
@@ -139,10 +165,23 @@ with tab3:
 
     if scope:
         st.markdown(f"### 📁 Project: {scope.get('Project Name', 'Untitled')}")
-        st.markdown(f"- **Study Type:** {scope.get('Study Type')}\n- **Sample Size (N):** {scope.get('Estimated N')}\n- **Timepoints:** {scope.get('Timepoints')}\n- **IRB:** {scope.get('IRB Status')}\n- **Data Methods:** {', '.join(scope.get('Data Methods', []))}\n- **Incentives:** {scope.get('Incentives')}\n- **Technology:** {scope.get('Tech')}\n- **Timeline:** {scope.get('Timeline')}\n")
+        st.markdown(f"- **Study Type:** {scope.get('Study Type')}
+- **Sample Size (N):** {scope.get('Estimated N')}
+- **Timepoints:** {scope.get('Timepoints')}
+- **IRB:** {scope.get('IRB Status')}
+- **Study Length (Months):** {scope.get('Study Length (Months)')}
+- **Estimated Budget:** ${scope.get('Budget Estimate'):,}
+- **Data Methods:** {', '.join(scope.get('Data Methods', []))}
+- **Incentives:** {scope.get('Incentives')}
+- **Technology:** {scope.get('Tech')}
+- **Timeline:** {scope.get('Timeline')}
+- **Milestones / Sprints Defined:**
+  - {scope.get('Sprint 1 Title')}: {scope.get('Sprint 1 Goal')}
+  - {scope.get('Sprint 2 Title')}: {scope.get('Sprint 2 Goal')}
+  - {scope.get('Sprint 3 Title')}: {scope.get('Sprint 3 Goal')}
+")
 
-    if log:
-        st.markdown("---")
+    st.markdown("---")
         st.markdown("### 🧩 Task Breakdown")
         for task in log:
             st.markdown(f"**{task['Task']}** — Est. {task['Units']} units (${task['Cost']})")
