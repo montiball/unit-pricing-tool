@@ -30,7 +30,6 @@ if "phases" not in st.session_state:
     st.session_state.phases = []  # List of phase dictionaries
 
 # ----------------- Comprehensive Service Database -----------------
-# (Sample entries; expand as needed for your 13 core buckets.)
 data = [
     {
         "Category": "Discovery & Design",
@@ -170,32 +169,30 @@ with tab0:
     
     st.markdown("---")
     st.markdown("### Define Project Phases / Milestones")
-    st.markdown("Use the section below to add as many phases as needed. These phases are for internal planning (e.g., timeline visualizations) and proposal structuring.")
+    st.markdown("Add as many phases as needed. Each phase is for internal planning and proposal structuring.")
     
-    # Initialize phases list if not already done
-    if "phases" not in st.session_state:
-        st.session_state.phases = []
+    # Display current phases using expanders
+    if st.session_state.phases:
+        for idx, phase in enumerate(st.session_state.phases):
+            with st.expander(f"Phase {idx+1}: {phase.get('Title', 'New Phase')}"):
+                phase_title = st.text_input("Phase Title", value=phase.get("Title", ""), key=f"phase_title_{idx}")
+                phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
+                phase_start = st.date_input("Phase Start Date", value=phase.get("Start", project_start_date), key=f"phase_start_{idx}")
+                phase_end = st.date_input("Phase End Date", value=phase.get("End", project_end_date), key=f"phase_end_{idx}")
+                # Update the phase in session state
+                st.session_state.phases[idx] = {
+                    "Title": phase_title,
+                    "Description": phase_desc,
+                    "Start": phase_start,
+                    "End": phase_end
+                }
+                if st.button("Remove Phase", key=f"remove_phase_{idx}"):
+                    # Remove the phase without calling experimental_rerun()
+                    phases_copy = st.session_state.phases.copy()
+                    phases_copy.pop(idx)
+                    st.session_state.phases = phases_copy
+                    st.success("Phase removed. Please click 'Save / Update Scope Setup' to refresh.")
     
-    # Display current phases
-    for idx, phase in enumerate(st.session_state.phases):
-        with st.expander(f"Phase {idx+1}: {phase.get('Title', 'New Phase')}"):
-            phase_title = st.text_input("Phase Title", value=phase.get("Title", ""), key=f"phase_title_{idx}")
-            phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
-            phase_start = st.date_input("Phase Start Date", value=phase.get("Start", project_start_date), key=f"phase_start_{idx}")
-            phase_end = st.date_input("Phase End Date", value=phase.get("End", project_end_date), key=f"phase_end_{idx}")
-            # Update the phase in session state
-            st.session_state.phases[idx] = {
-                "Title": phase_title,
-                "Description": phase_desc,
-                "Start": phase_start,
-                "End": phase_end
-            }
-            # Optionally, allow removal of a phase
-            if st.button("Remove Phase", key=f"remove_phase_{idx}"):
-                st.session_state.phases.pop(idx)
-                st.experimental_rerun()
-    
-    # Button to add a new phase
     if st.button("Add New Phase"):
         st.session_state.phases.append({
             "Title": "",
@@ -203,11 +200,10 @@ with tab0:
             "Start": project_start_date,
             "End": project_end_date
         })
-        st.experimental_rerun()
+        st.success("New phase added. Please review and update as needed.")
     
     st.markdown("---")
     st.markdown("### Broad Project Goals")
-    # Instead of detailed objectives from tasks, capture high-level project goals here.
     project_goals = st.text_area("Enter broad project goals (e.g., maximize ROI, establish a scalable model, strategic outcomes)", 
                                  value=st.session_state.scope_info.get("Project Goals", ""))
     
@@ -244,7 +240,6 @@ with tab1:
     selected_task = st.selectbox("Select Task", filtered_services["Task Name"].unique())
     task_info = filtered_services[filtered_services["Task Name"] == selected_task].iloc[0]
     
-    # Check for overrides for this task
     overrides = st.session_state.task_modifiers.get(selected_task, {})
     effective_hours = overrides.get("Estimated Hours", task_info["Estimated Hours"])
     effective_base_cost = overrides.get("Base Cost", task_info["Base Cost"])
@@ -473,7 +468,6 @@ with tab3:
         proposal += "## Conclusion\n"
         proposal += ("Based on our experience and the defined scope, we are confident that our approach will maximize ROI "
                      "and deliver actionable outcomes for your organization.\n\n")
-        # Placeholder for additional method-specific descriptions
         proposal += "*(End of Proposal)*\n"
         return proposal
     
