@@ -25,6 +25,22 @@ with st.sidebar:
 
 # ----------------- Running Cost Summary Container in Sidebar -----------------
 cost_container = st.sidebar.container()
+with cost_container:
+    st.markdown("### Running Project Cost Summary")
+    st.write("Debug: Current tasks", st.session_state.sprint_log)
+    if st.session_state.sprint_log:
+        df_log = pd.DataFrame(st.session_state.sprint_log)
+        if "Direct Cost" not in df_log.columns:
+            df_log["Direct Cost"] = 0
+        total_direct_cost = df_log["Direct Cost"].sum()
+        overhead_amount = total_direct_cost * (overhead_percent / 100)
+        total_project_cost = total_direct_cost + overhead_amount
+        st.write(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
+        st.write(f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}")
+        st.write(f"**Total Project Cost:** ${total_project_cost:,.2f}")
+    else:
+        st.write("No tasks added yet.")
+
 
 # ----------------- Initialize Session State -----------------
 if "sprint_log" not in st.session_state:
