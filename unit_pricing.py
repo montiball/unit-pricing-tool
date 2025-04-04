@@ -20,7 +20,7 @@ with st.sidebar:
     unit_price = st.number_input("Unit Price ($ per unit)", min_value=100, step=100, value=5000)
 
 # ----------------- Running Cost Summary Container in Sidebar -----------------
-cost_container = st.sidebar.container()  # We'll update this later
+cost_container = st.sidebar.container()
 
 # ----------------- Initialize Session State -----------------
 if "sprint_log" not in st.session_state:
@@ -36,6 +36,12 @@ if "phases" not in st.session_state:
 def compute_task_cost(task_category, subcategory, num_units, custom_overrides=None):
     """
     Computes labor cost based on default templates.
+    
+    For Data Collection & Management tasks:
+      - "Self-Reported Survey": fixed overhead for Tier 1 and Tier 2 plus variable hours for Tier 3 per unit.
+      - "Clinical Measure": fixed hours for all tiers.
+    For other categories, fixed defaults are used.
+    
     Returns:
         labor_cost, tier1_hours, tier2_hours, tier3_hours
     """
@@ -43,8 +49,8 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
             defaults = {
-                "tier1_fixed": 2,      # fixed hours for strategy
-                "tier2_fixed": 1,      # fixed hours for management
+                "tier1_fixed": 2,      # hours for strategy
+                "tier2_fixed": 1,      # hours for management
                 "tier3_per_unit": 0.2  # hours per survey/participant
             }
         elif subcategory == "Clinical Measure":
@@ -60,7 +66,7 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     else:
         defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
     
-    # Allow custom overrides
+    # Apply custom overrides if provided
     if custom_overrides:
         defaults.update(custom_overrides)
     
@@ -292,7 +298,7 @@ with tab1:
         new_est_hours = st.number_input("Estimated Hours", value=effective_hours, key="edit_est_hours")
         new_base_cost = st.number_input("Base Cost", value=effective_base_cost, key="edit_base_cost")
         new_complexity = st.selectbox("Complexity", ["Low", "Medium", "High"], 
-                                      index=["Low", "Medium", "High"].index(effective_complexity) if effective_complexity in ["Low","Medium","High"] else 1, key="edit_complexity")
+                                      index=["Low", "Medium", "High"].index(effective_complexity) if effective_complexity in ["Low", "Medium", "High"] else 1, key="edit_complexity")
         new_notes = st.text_area("Notes", value=effective_notes, key="edit_notes")
         if st.button("Save Task Details", key="save_task_details"):
             st.session_state.task_modifiers[selected_task] = {
@@ -310,12 +316,11 @@ with tab1:
     
     st.markdown("---")
     st.markdown("### Cost Simulation")
-    # For tasks in Data Collection, use default template-based computation
     if task_info["Category"] == "Data Collection & Management":
         if task_info["Subcategory"] == "Self-Reported Survey":
             num_units = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
             labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
-            # Do NOT apply overhead here; store as direct cost.
+            # Direct cost computed without overhead
             direct_cost = labor_cost
             st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
             st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
@@ -334,12 +339,10 @@ with tab1:
             direct_cost = effective_base_cost * quantity
             st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
     else:
-        # For other tasks, use a basic simulation (direct cost)
         quantity = st.number_input("Quantity", min_value=1, value=1)
         direct_cost = effective_base_cost * quantity
         st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
     
-    # When adding the task, store the direct cost (overhead applied later)
     if st.button("➕ Add Task to Project"):
         task_entry = {
             "Category": task_info["Category"],
@@ -359,6 +362,9 @@ with cost_container:
     st.markdown("### Running Project Cost Summary")
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
+        # Ensure "Direct Cost" exists
+        if "Direct Cost" not in df_log.columns:
+            df_log["Direct Cost"] = 0
         total_direct_cost = df_log["Direct Cost"].sum()
         overhead_amount = total_direct_cost * (overhead_percent / 100)
         total_project_cost = total_direct_cost + overhead_amount
@@ -393,6 +399,9 @@ with tab2:
     
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
+        # Ensure "Direct Cost" exists
+        if "Direct Cost" not in df_log.columns:
+            df_log["Direct Cost"] = 0
         st.dataframe(df_log, use_container_width=True)
         
         total_direct_cost = df_log["Direct Cost"].sum()
@@ -513,6 +522,8 @@ with tab3:
                 proposal += f"- **Modifiers:** {task['Modifiers'].get('Custom Notes', '')}\n"
             proposal += "\n"
         df_log = pd.DataFrame(sprint_log)
+        if "Direct Cost" not in df_log.columns:
+            df_log["Direct Cost"] = 0
         total_direct_cost = df_log["Direct Cost"].sum()
         overhead_amount = total_direct_cost * (overhead_percent / 100)
         total_project_cost = total_direct_cost + overhead_amount
