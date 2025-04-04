@@ -19,6 +19,9 @@ with st.sidebar:
     overhead_percent = st.number_input("Overhead / Indirect (%)", min_value=0, max_value=100, value=39, step=1)
     unit_price = st.number_input("Unit Price ($ per unit)", min_value=100, step=100, value=5000)
 
+# ----------------- Running Cost Summary Container in Sidebar -----------------
+cost_container = st.sidebar.container()  # We'll update this later
+
 # ----------------- Initialize Session State -----------------
 if "sprint_log" not in st.session_state:
     st.session_state.sprint_log = []
@@ -33,13 +36,6 @@ if "phases" not in st.session_state:
 def compute_task_cost(task_category, subcategory, num_units, custom_overrides=None):
     """
     Computes labor cost based on default templates.
-    
-    For Data Collection & Management tasks:
-      - If subcategory is "Self-Reported Survey": fixed overhead for Tier 1 and 2 plus variable hours for Tier 3 per participant.
-      - If subcategory is "Clinical Measure": use a fixed default breakdown.
-    
-    For other categories, you can define fixed defaults.
-    
     Returns:
         labor_cost, tier1_hours, tier2_hours, tier3_hours
     """
@@ -47,15 +43,15 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
             defaults = {
-                "tier1_fixed": 2,      # hours (strategy/partner-facing)
-                "tier2_fixed": 1,      # hours (management)
+                "tier1_fixed": 2,      # fixed hours for strategy
+                "tier2_fixed": 1,      # fixed hours for management
                 "tier3_per_unit": 0.2  # hours per survey/participant
             }
         elif subcategory == "Clinical Measure":
             defaults = {
-                "tier1_fixed": 1,      # less strategy
-                "tier2_fixed": 1,      # management
-                "tier3_fixed": 1       # execution (fixed per test)
+                "tier1_fixed": 1,
+                "tier2_fixed": 1,
+                "tier3_fixed": 1       # fixed hours per test
             }
         else:
             defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
@@ -64,11 +60,11 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
     else:
         defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
     
-    # Allow custom overrides to update defaults
+    # Allow custom overrides
     if custom_overrides:
         defaults.update(custom_overrides)
     
-    # Calculate hours based on category
+    # Calculate hours based on category/subcategory
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
             tier1_hours = defaults.get("tier1_fixed", 2)
@@ -77,7 +73,7 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
         elif subcategory == "Clinical Measure":
             tier1_hours = defaults.get("tier1_fixed", 1)
             tier2_hours = defaults.get("tier2_fixed", 1)
-            tier3_hours = defaults.get("tier3_fixed", 1)  # Fixed hours per test
+            tier3_hours = defaults.get("tier3_fixed", 1)
         else:
             tier1_hours = defaults.get("tier1_fixed", 1)
             tier2_hours = defaults.get("tier2_fixed", 1)
@@ -87,7 +83,6 @@ def compute_task_cost(task_category, subcategory, num_units, custom_overrides=No
         tier2_hours = defaults.get("tier2_fixed", 1)
         tier3_hours = defaults.get("tier3_fixed", 1)
     
-    # Calculate labor cost using global rates from sidebar
     labor_cost = (tier1_hours * tier1_rate) + (tier2_hours * tier2_rate) + (tier3_hours * tier3_rate)
     return labor_cost, tier1_hours, tier2_hours, tier3_hours
 
@@ -104,10 +99,6 @@ data = [
         "Staff Role(s)": "Strategy Consultant, Analyst",
         "Participant Involvement": "No",
         "Deliverables": "Needs Assessment Report, Strategic Recommendations",
-        "Units": 2.0,
-        "Dependencies": "None",
-        "Optional Bundles": "Needs Assessment + Competitive Analysis Bundle",
-        "Tags/Modifiers": "Remote, Quick-turnaround",
         "Notes": "Ideal for early-stage projects."
     },
     {
@@ -121,10 +112,6 @@ data = [
         "Staff Role(s)": "Facilitator, Analyst",
         "Participant Involvement": "Yes ($50 per participant)",
         "Deliverables": "Focus Group Report, Transcripts",
-        "Units": 2.5,
-        "Dependencies": "Pre-screening of participants",
-        "Optional Bundles": "Focus Group + Survey Pack",
-        "Tags/Modifiers": "Culturally tailored, Virtual/In-person",
         "Notes": "Adjust group size based on client needs."
     },
     {
@@ -138,10 +125,6 @@ data = [
         "Staff Role(s)": "Research Scientist, IRB Specialist",
         "Participant Involvement": "No",
         "Deliverables": "Study Protocol Document, IRB Submission Package",
-        "Units": 4.0,
-        "Dependencies": "Needs Assessment completed",
-        "Optional Bundles": "Protocol + Training Manual Bundle",
-        "Tags/Modifiers": "Regulatory, Detailed",
         "Notes": "Essential for clinical research."
     },
     {
@@ -155,10 +138,6 @@ data = [
         "Staff Role(s)": "Survey Administrator, Analyst",
         "Participant Involvement": "Yes ($25 per participant)",
         "Deliverables": "Survey Data, Summary Report",
-        "Units": 1.0,
-        "Dependencies": "Recruitment completed",
-        "Optional Bundles": "Survey + Focus Group Bundle",
-        "Tags/Modifiers": "Email, Online",
         "Notes": "Low cost and scalable."
     },
     {
@@ -172,10 +151,6 @@ data = [
         "Staff Role(s)": "Lab Technician, Nurse",
         "Participant Involvement": "Yes (incentivized)",
         "Deliverables": "Test Results, Report",
-        "Units": 1.0,
-        "Dependencies": "IRB Approval",
-        "Optional Bundles": "Clinical Bundle",
-        "Tags/Modifiers": "Standard, Advanced",
         "Notes": "Advanced options available."
     },
     {
@@ -189,10 +164,6 @@ data = [
         "Staff Role(s)": "Project Manager, Advisor",
         "Participant Involvement": "No",
         "Deliverables": "Project Roadmap, Coordination Report",
-        "Units": 2.5,
-        "Dependencies": "Initial Planning",
-        "Optional Bundles": "Full-Service Management Bundle",
-        "Tags/Modifiers": "Strategic, Comprehensive",
         "Notes": "Ideal for complex projects."
     }
 ]
@@ -301,10 +272,10 @@ with tab1:
     task_info = filtered_services[filtered_services["Task Name"] == selected_task].iloc[0]
     
     overrides = st.session_state.task_modifiers.get(selected_task, {})
-    effective_hours = overrides.get("Estimated Hours", task_info["Estimated Hours"])
-    effective_base_cost = overrides.get("Base Cost", task_info["Base Cost"])
-    effective_complexity = overrides.get("Complexity", task_info["Complexity"])
-    effective_notes = overrides.get("Custom Notes", task_info["Notes"])
+    effective_hours = overrides.get("Estimated Hours", task_info.get("Estimated Hours", 0))
+    effective_base_cost = overrides.get("Base Cost", task_info.get("Base Cost", 0))
+    effective_complexity = overrides.get("Complexity", task_info.get("Complexity", ""))
+    effective_notes = overrides.get("Custom Notes", task_info.get("Notes", ""))
     
     st.markdown("### Task Details")
     st.markdown(f"**Task Name:** {task_info['Task Name']}")
@@ -321,7 +292,7 @@ with tab1:
         new_est_hours = st.number_input("Estimated Hours", value=effective_hours, key="edit_est_hours")
         new_base_cost = st.number_input("Base Cost", value=effective_base_cost, key="edit_base_cost")
         new_complexity = st.selectbox("Complexity", ["Low", "Medium", "High"], 
-                                      index=["Low", "Medium", "High"].index(effective_complexity), key="edit_complexity")
+                                      index=["Low", "Medium", "High"].index(effective_complexity) if effective_complexity in ["Low","Medium","High"] else 1, key="edit_complexity")
         new_notes = st.text_area("Notes", value=effective_notes, key="edit_notes")
         if st.button("Save Task Details", key="save_task_details"):
             st.session_state.task_modifiers[selected_task] = {
@@ -334,52 +305,68 @@ with tab1:
     
     st.markdown("---")
     st.markdown("### Assign Task to a Phase")
-    phases = [phase["Title"] for phase in st.session_state.phases if phase.get("Title")]
-    phase_assignment = st.selectbox("Select Phase for this Task", options=phases) if phases else None
+    phases_list = [phase["Title"] for phase in st.session_state.phases if phase.get("Title")]
+    phase_assignment = st.selectbox("Select Phase for this Task", options=phases_list) if phases_list else None
     
     st.markdown("---")
     st.markdown("### Cost Simulation")
-    # For tasks in Data Collection & Management, use default templates:
+    # For tasks in Data Collection, use default template-based computation
     if task_info["Category"] == "Data Collection & Management":
         if task_info["Subcategory"] == "Self-Reported Survey":
             num_units = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
             labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
-            total_cost = labor_cost * (1 + overhead_percent/100)
+            # Do NOT apply overhead here; store as direct cost.
+            direct_cost = labor_cost
             st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
             st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
-            st.markdown(f"**Estimated Total Cost (with overhead):** ${total_cost:,.2f}")
+            st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
             quantity = num_units
         elif task_info["Subcategory"] == "Clinical Measure":
             num_units = st.number_input("Number of Tests", min_value=1, value=5)
             labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
-            total_cost = labor_cost * (1 + overhead_percent/100)
+            direct_cost = labor_cost
             st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
             st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
-            st.markdown(f"**Estimated Total Cost (with overhead):** ${total_cost:,.2f}")
+            st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
             quantity = num_units
         else:
             quantity = st.number_input("Quantity", min_value=1, value=1)
-            total_cost = effective_base_cost * quantity * (1 + overhead_percent/100)
-            st.markdown(f"**Estimated Total Cost:** ${total_cost:,.2f}")
+            direct_cost = effective_base_cost * quantity
+            st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
     else:
-        # For tasks not in Data Collection, use the base simulation logic.
+        # For other tasks, use a basic simulation (direct cost)
         quantity = st.number_input("Quantity", min_value=1, value=1)
-        total_cost = effective_base_cost * quantity * (1 + overhead_percent/100)
-        st.markdown(f"**Estimated Total Cost:** ${total_cost:,.2f}")
+        direct_cost = effective_base_cost * quantity
+        st.markdown(f"**Direct Cost:** ${direct_cost:,.2f}")
     
+    # When adding the task, store the direct cost (overhead applied later)
     if st.button("➕ Add Task to Project"):
         task_entry = {
             "Category": task_info["Category"],
             "Subcategory": task_info["Subcategory"],
             "Task": task_info["Task Name"],
             "Quantity": quantity,
-            "Estimated Cost": round(total_cost, 2),
+            "Direct Cost": round(direct_cost, 2),
             "Modifiers": st.session_state.task_modifiers.get(selected_task, {})
         }
         if phase_assignment:
             task_entry["Phase"] = phase_assignment
         st.session_state.sprint_log.append(task_entry)
         st.success("Task added to project!")
+
+# ----------------- Sidebar Running Cost Summary -----------------
+with cost_container:
+    st.markdown("### Running Project Cost Summary")
+    if st.session_state.sprint_log:
+        df_log = pd.DataFrame(st.session_state.sprint_log)
+        total_direct_cost = df_log["Direct Cost"].sum()
+        overhead_amount = total_direct_cost * (overhead_percent / 100)
+        total_project_cost = total_direct_cost + overhead_amount
+        st.write(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
+        st.write(f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}")
+        st.write(f"**Total Project Cost:** ${total_project_cost:,.2f}")
+    else:
+        st.write("No tasks added yet.")
 
 # ----------------- Tab 2: Dashboard -----------------
 with tab2:
@@ -408,40 +395,44 @@ with tab2:
         df_log = pd.DataFrame(st.session_state.sprint_log)
         st.dataframe(df_log, use_container_width=True)
         
-        total_cost = df_log["Estimated Cost"].sum()
-        st.markdown(f"**Total Project Cost:** ${total_cost:,.2f}")
+        total_direct_cost = df_log["Direct Cost"].sum()
+        overhead_amount = total_direct_cost * (overhead_percent / 100)
+        total_project_cost = total_direct_cost + overhead_amount
+        st.markdown(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
+        st.markdown(f"**Overhead:** ${overhead_amount:,.2f}")
+        st.markdown(f"**Total Project Cost:** ${total_project_cost:,.2f}")
         
         # Bar chart by category
-        cost_by_category = df_log.groupby("Category")["Estimated Cost"].sum().reset_index()
+        cost_by_category = df_log.groupby("Category")["Direct Cost"].sum().reset_index()
         fig, ax = plt.subplots(figsize=(5, 3))
-        ax.bar(cost_by_category["Category"], cost_by_category["Estimated Cost"])
+        ax.bar(cost_by_category["Category"], cost_by_category["Direct Cost"])
         ax.set_xlabel("Category")
-        ax.set_ylabel("Cost ($)")
-        ax.set_title("Cost by Category")
+        ax.set_ylabel("Direct Cost ($)")
+        ax.set_title("Direct Cost by Category")
         st.pyplot(fig)
         
         # Pie chart by phase
         if "Phase" in df_log.columns and df_log["Phase"].notna().any():
-            cost_by_phase = df_log.groupby("Phase")["Estimated Cost"].sum()
+            cost_by_phase = df_log.groupby("Phase")["Direct Cost"].sum()
             fig2, ax2 = plt.subplots()
             ax2.pie(cost_by_phase, labels=cost_by_phase.index, autopct="%1.1f%%", startangle=90)
-            ax2.set_title("Cost Distribution by Phase")
+            ax2.set_title("Direct Cost Distribution by Phase")
             st.pyplot(fig2)
         
         # Gantt chart for phases
-        phases = [phase for phase in st.session_state.phases if phase.get("Title")]
-        if phases:
+        phases_list = [phase for phase in st.session_state.phases if phase.get("Title")]
+        if phases_list:
             st.markdown("### Project Timeline (Gantt Chart)")
-            fig3, ax3 = plt.subplots(figsize=(10, len(phases) * 0.5 + 1))
-            for i, phase in enumerate(phases):
+            fig3, ax3 = plt.subplots(figsize=(10, len(phases_list) * 0.5 + 1))
+            for i, phase in enumerate(phases_list):
                 if phase["Start"] and phase["End"]:
                     start_num = mdates.date2num(phase["Start"])
                     end_num = mdates.date2num(phase["End"])
                     duration = end_num - start_num
                     ax3.barh(i, duration, left=start_num, height=0.3, color="skyblue")
                     ax3.text(start_num + duration/2, i, phase["Title"], va="center", ha="center", color="black")
-            ax3.set_yticks(range(len(phases)))
-            ax3.set_yticklabels([phase["Title"] for phase in phases])
+            ax3.set_yticks(range(len(phases_list)))
+            ax3.set_yticklabels([phase["Title"] for phase in phases_list])
             ax3.xaxis_date()
             ax3.set_xlabel("Date")
             ax3.set_title("Project Timeline")
@@ -480,7 +471,7 @@ with tab3:
     if sprint_log:
         for task in sprint_log:
             phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
-            st.markdown(f"**{task['Task']}** (Category: {task['Category']}){phase_info} — Qty: {task['Quantity']}, Cost: ${task['Estimated Cost']}")
+            st.markdown(f"**{task['Task']}** (Category: {task['Category']}){phase_info} — Qty: {task['Quantity']}, Direct Cost: ${task['Direct Cost']}, Total Cost: ${round(task['Direct Cost']*(1+overhead_percent/100),2)}")
             if task.get("Modifiers"):
                 st.markdown(f"*Modifiers:* {task['Modifiers'].get('Custom Notes', '')}")
     else:
@@ -516,13 +507,19 @@ with tab3:
             phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
             proposal += f"### {task['Task']} (Category: {task['Category']}){phase_info}\n"
             proposal += f"- **Quantity:** {task['Quantity']}\n"
-            proposal += f"- **Estimated Cost:** ${task['Estimated Cost']}\n"
+            proposal += f"- **Direct Cost:** ${task['Direct Cost']}\n"
+            proposal += f"- **Total Cost (with overhead):** ${round(task['Direct Cost']*(1+overhead_percent/100),2)}\n"
             if task.get("Modifiers"):
                 proposal += f"- **Modifiers:** {task['Modifiers'].get('Custom Notes', '')}\n"
             proposal += "\n"
-        total_cost = sum(task["Estimated Cost"] for task in sprint_log)
+        df_log = pd.DataFrame(sprint_log)
+        total_direct_cost = df_log["Direct Cost"].sum()
+        overhead_amount = total_direct_cost * (overhead_percent / 100)
+        total_project_cost = total_direct_cost + overhead_amount
         proposal += "## Cost Breakdown\n"
-        proposal += f"**Total Project Cost:** ${total_cost:,.2f}\n\n"
+        proposal += f"**Total Direct Cost:** ${total_direct_cost:,.2f}\n\n"
+        proposal += f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}\n\n"
+        proposal += f"**Total Project Cost:** ${total_project_cost:,.2f}\n\n"
         proposal += "## Timeline & Deliverables\n"
         proposal += "A detailed timeline and deliverables will be provided upon project initiation.\n\n"
         proposal += "## Conclusion\n"
