@@ -1,56 +1,13 @@
 import streamlit as st
 import pandas as pd
-import openai
 import matplotlib.pyplot as plt
-import random
-import json
-import uuid
 
-st.set_page_config(page_title="Agile Project Scoping Tool", layout="wide")
-st.title("🧠 Agile Project Scoping Tool")
-st.caption("Dynamically scope out research projects, program evaluations, consulting engagements, and more.")
+# ----------------- Page Configuration -----------------
+st.set_page_config(page_title="Dynamic Research Project Scoping Tool", layout="wide")
+st.title("Dynamic Research Project Scoping Tool")
+st.caption("From broad scoping to detailed proposals across 13 core service categories.")
 
-openai.api_key = st.secrets["openai"]["api_key"]
-
-# ----------------- Load or Simulate Task Library -----------------
-try:
-    csv_path = "ResearchCenter_ServiceMenu_Template(Task Library).csv"
-    task_df = pd.read_csv(csv_path, encoding='latin1')
-except Exception as e:
-    # Simulated tasks data if CSV not found
-    data = {
-        "Task Name": ["Focus Group", "Device Testing", "Survey Administration"],
-        "Category": ["Research", "Research", "Program Eval"],
-        "Brief Description (Visuals)": [
-            "Conduct focus groups with older adults.",
-            "Test new mHealth device with users.",
-            "Administer surveys to evaluate program impact."
-        ],
-        "Longer Description (SOW)": [
-            "Conduct detailed focus group sessions, stratify by demographic factors, and analyze themes.",
-            "Perform device testing with a sample of users, capturing usability and performance metrics.",
-            "Distribute and analyze surveys to capture program impact and participant satisfaction."
-        ],
-        "Estimated Hours": [10, 8, 5],
-        "Tier 2 Hours": [2, 1, 1],
-        "Tier 3 Hours": [1, 0, 0],
-        "Task Duration": [3, 2, 1],  # in days
-        "Prerequisites": ["None", "Focus Group", "Focus Group"],
-        "Custom Notes": [
-            "May require additional analysis if themes exceed 3.",
-            "Device testing contingent on prototype availability.",
-            "Survey design can be adjusted based on focus group insights."
-        ]
-    }
-    task_df = pd.DataFrame(data)
-
-# ----------------- Initialize Session State -----------------
-if "sprint_log" not in st.session_state:
-    st.session_state.sprint_log = []
-if "task_modifiers" not in st.session_state:
-    st.session_state.task_modifiers = {}
-
-# ----------------- Sidebar Global Settings -----------------
+# ----------------- Global Settings in Sidebar -----------------
 with st.sidebar:
     st.header("🔧 Global Settings")
     tier1_rate = st.number_input("Tier 1 (Director) Rate ($/hr)", value=300)
@@ -59,32 +16,381 @@ with st.sidebar:
     overhead_percent = st.number_input("Overhead / Indirect (%)", min_value=0, max_value=100, value=39, step=1)
     unit_price = st.number_input("Unit Price ($ per unit)", min_value=100, step=100, value=5000)
 
+# ----------------- Initialize Session State -----------------
+if "sprint_log" not in st.session_state:
+    st.session_state.sprint_log = []
+if "scope_info" not in st.session_state:
+    st.session_state.scope_info = {}
+if "task_modifiers" not in st.session_state:
+    st.session_state.task_modifiers = {}
+
+# ----------------- Comprehensive Service Database -----------------
+# This sample database covers 13 core service categories.
+data = [
+    # 1. Discovery & Design
+    {
+        "Category": "Discovery & Design",
+        "Subcategory": "",
+        "Task Name": "Initial Needs Assessment",
+        "Purpose": "Determine client requirements and market opportunities.",
+        "Complexity": "Medium",
+        "Estimated Hours": 20,
+        "Base Cost": 2000,
+        "Staff Role(s)": "Strategy Consultant, Analyst",
+        "Participant Involvement": "No",
+        "Deliverables": "Needs Assessment Report, Strategic Recommendations",
+        "Units": 2.0,
+        "Dependencies": "None",
+        "Optional Bundles": "Needs Assessment + Competitive Analysis Bundle",
+        "Tags/Modifiers": "Remote, Quick-turnaround",
+        "Notes": "Ideal for early-stage projects."
+    },
+    {
+        "Category": "Discovery & Design",
+        "Subcategory": "",
+        "Task Name": "Tech Scan and Innovation Brief",
+        "Purpose": "Explore emerging technologies for the client’s industry.",
+        "Complexity": "High",
+        "Estimated Hours": 30,
+        "Base Cost": 3000,
+        "Staff Role(s)": "Director, Technologist",
+        "Participant Involvement": "No",
+        "Deliverables": "Technology Brief, Innovation Roadmap",
+        "Units": 3.0,
+        "Dependencies": "Initial Needs Assessment",
+        "Optional Bundles": "Combined with Needs Assessment for discounted rate",
+        "Tags/Modifiers": "High complexity, Industry-specific",
+        "Notes": "Use for clients looking to adopt new tech."
+    },
+    # 2. Stakeholder & Community Engagement
+    {
+        "Category": "Stakeholder & Community Engagement",
+        "Subcategory": "",
+        "Task Name": "Community Focus Group",
+        "Purpose": "Gather insights from community members.",
+        "Complexity": "Medium",
+        "Estimated Hours": 25,
+        "Base Cost": 2500,
+        "Staff Role(s)": "Facilitator, Analyst",
+        "Participant Involvement": "Yes ($50 per participant)",
+        "Deliverables": "Focus Group Report, Transcripts",
+        "Units": 2.5,
+        "Dependencies": "Pre-screening of participants",
+        "Optional Bundles": "Focus Group + Survey Pack",
+        "Tags/Modifiers": "Culturally tailored, Virtual/In-person",
+        "Notes": "Adjust group size based on client needs."
+    },
+    {
+        "Category": "Stakeholder & Community Engagement",
+        "Subcategory": "",
+        "Task Name": "Stakeholder Interview Series",
+        "Purpose": "Conduct in-depth interviews with key stakeholders.",
+        "Complexity": "Low",
+        "Estimated Hours": 15,
+        "Base Cost": 1500,
+        "Staff Role(s)": "Interviewer, Analyst",
+        "Participant Involvement": "Yes ($75 per interview)",
+        "Deliverables": "Interview Summaries, Thematic Analysis",
+        "Units": 1.5,
+        "Dependencies": "Stakeholder identification",
+        "Optional Bundles": "Interview series bundle (5 interviews)",
+        "Tags/Modifiers": "Remote, On-site options",
+        "Notes": "Ideal for qualitative insights."
+    },
+    # 3. Study Planning & IRB
+    {
+        "Category": "Study Planning & IRB",
+        "Subcategory": "",
+        "Task Name": "Protocol Development",
+        "Purpose": "Develop research protocols and study designs.",
+        "Complexity": "High",
+        "Estimated Hours": 40,
+        "Base Cost": 4000,
+        "Staff Role(s)": "Research Scientist, IRB Specialist",
+        "Participant Involvement": "No",
+        "Deliverables": "Study Protocol Document, IRB Submission Package",
+        "Units": 4.0,
+        "Dependencies": "Needs Assessment completed",
+        "Optional Bundles": "Protocol + Training Manual Bundle",
+        "Tags/Modifiers": "Regulatory, Detailed",
+        "Notes": "Essential for clinical research."
+    },
+    {
+        "Category": "Study Planning & IRB",
+        "Subcategory": "",
+        "Task Name": "IRB Submission & Amendment Support",
+        "Purpose": "Support the IRB submission process and handle amendments.",
+        "Complexity": "Medium",
+        "Estimated Hours": 20,
+        "Base Cost": 2000,
+        "Staff Role(s)": "IRB Specialist, Research Coordinator",
+        "Participant Involvement": "No",
+        "Deliverables": "IRB Submission Package, Amendment Documents",
+        "Units": 2.5,
+        "Dependencies": "Protocol Development",
+        "Optional Bundles": "IRB Bundle with Protocol Support",
+        "Tags/Modifiers": "Regulatory compliance",
+        "Notes": "Streamlines IRB interactions."
+    },
+    # 4. Participant Recruitment & Retention
+    {
+        "Category": "Participant Recruitment & Retention",
+        "Subcategory": "",
+        "Task Name": "Recruitment Strategy Design",
+        "Purpose": "Develop strategies for participant recruitment.",
+        "Complexity": "Medium",
+        "Estimated Hours": 25,
+        "Base Cost": 2500,
+        "Staff Role(s)": "Recruitment Specialist, Marketing",
+        "Participant Involvement": "No",
+        "Deliverables": "Recruitment Plan, Screening Tools",
+        "Units": 2.0,
+        "Dependencies": "Study Protocol",
+        "Optional Bundles": "Recruitment + Retention Bundle",
+        "Tags/Modifiers": "Targeted, Demographically tailored",
+        "Notes": "Key for representative samples."
+    },
+    {
+        "Category": "Participant Recruitment & Retention",
+        "Subcategory": "",
+        "Task Name": "Retention & Incentive Planning",
+        "Purpose": "Design strategies for participant retention and incentives.",
+        "Complexity": "Low",
+        "Estimated Hours": 15,
+        "Base Cost": 1500,
+        "Staff Role(s)": "Program Manager, Analyst",
+        "Participant Involvement": "Yes (varies)",
+        "Deliverables": "Retention Plan, Incentive Budget",
+        "Units": 1.5,
+        "Dependencies": "Recruitment Strategy",
+        "Optional Bundles": "Retention Bundle",
+        "Tags/Modifiers": "Flexible, Scalable",
+        "Notes": "Focus on long-term engagement."
+    },
+    # 5. Data Collection & Management
+    {
+        "Category": "Data Collection & Management",
+        "Subcategory": "Self-Reported Survey",
+        "Task Name": "Self-Reported Survey Administration",
+        "Purpose": "Administer surveys to collect self-reported data.",
+        "Complexity": "Low",
+        "Estimated Hours": 10,
+        "Base Cost": 1000,
+        "Staff Role(s)": "Survey Administrator, Analyst",
+        "Participant Involvement": "Yes ($25 per participant)",
+        "Deliverables": "Survey Data, Summary Report",
+        "Units": 1.0,
+        "Dependencies": "Recruitment completed",
+        "Optional Bundles": "Survey + Focus Group Bundle",
+        "Tags/Modifiers": "Email, Online",
+        "Notes": "Low cost and scalable."
+    },
+    {
+        "Category": "Data Collection & Management",
+        "Subcategory": "Clinical Measure",
+        "Task Name": "Point-of-Care Blood Test",
+        "Purpose": "Conduct a point-of-care blood test.",
+        "Complexity": "Medium",
+        "Estimated Hours": 3,
+        "Base Cost": 1500,
+        "Staff Role(s)": "Lab Technician, Nurse",
+        "Participant Involvement": "Yes (incentivized)",
+        "Deliverables": "Test Results, Report",
+        "Units": 1.0,
+        "Dependencies": "IRB Approval",
+        "Optional Bundles": "Clinical Bundle",
+        "Tags/Modifiers": "Standard, Advanced",
+        "Notes": "Advanced options available."
+    },
+    {
+        "Category": "Data Collection & Management",
+        "Subcategory": "Electronic Data Capture",
+        "Task Name": "REDCap Survey Administration",
+        "Purpose": "Administer surveys using REDCap.",
+        "Complexity": "Low",
+        "Estimated Hours": 4,
+        "Base Cost": 1200,
+        "Staff Role(s)": "Data Manager, Analyst",
+        "Participant Involvement": "Yes ($20 per participant)",
+        "Deliverables": "Survey Data, Data Export",
+        "Units": 1.0,
+        "Dependencies": "Recruitment completed",
+        "Optional Bundles": "REDCap + Self-Report Bundle",
+        "Tags/Modifiers": "Automated, Secure",
+        "Notes": "Efficient and scalable."
+    },
+    # 6. Longitudinal & Population Health Studies
+    {
+        "Category": "Longitudinal & Population Health Studies",
+        "Subcategory": "",
+        "Task Name": "Cohort Management & Follow-up",
+        "Purpose": "Manage multi-timepoint data collection and follow-ups.",
+        "Complexity": "High",
+        "Estimated Hours": 50,
+        "Base Cost": 5000,
+        "Staff Role(s)": "Project Manager, Data Analyst",
+        "Participant Involvement": "Yes (incentives required)",
+        "Deliverables": "Cohort Dashboard, Follow-up Reports",
+        "Units": 4.0,
+        "Dependencies": "Initial Data Collection",
+        "Optional Bundles": "Longitudinal Study Bundle",
+        "Tags/Modifiers": "Multi-phase, Extended",
+        "Notes": "Essential for long-term studies."
+    },
+    # 7. Technology & Tool Development
+    {
+        "Category": "Technology & Tool Development",
+        "Subcategory": "",
+        "Task Name": "mHealth App Prototyping",
+        "Purpose": "Develop a mobile health application prototype.",
+        "Complexity": "High",
+        "Estimated Hours": 60,
+        "Base Cost": 6000,
+        "Staff Role(s)": "Software Developer, UX Designer",
+        "Participant Involvement": "No",
+        "Deliverables": "App Prototype, Technical Documentation",
+        "Units": 5.0,
+        "Dependencies": "Needs Assessment",
+        "Optional Bundles": "Tech Development + Testing Bundle",
+        "Tags/Modifiers": "Innovative, Agile",
+        "Notes": "Prototype to validate concepts."
+    },
+    # 8. Implementation & Evaluation
+    {
+        "Category": "Implementation & Evaluation",
+        "Subcategory": "",
+        "Task Name": "Pilot Rollout & Evaluation",
+        "Purpose": "Implement pilot studies and evaluate fidelity.",
+        "Complexity": "Medium",
+        "Estimated Hours": 40,
+        "Base Cost": 4000,
+        "Staff Role(s)": "Implementation Specialist, Analyst",
+        "Participant Involvement": "Yes (pilot group)",
+        "Deliverables": "Pilot Report, Evaluation Metrics",
+        "Units": 3.5,
+        "Dependencies": "Protocol Development",
+        "Optional Bundles": "Pilot + Feedback Bundle",
+        "Tags/Modifiers": "Iterative, Real-world",
+        "Notes": "Monitor closely for adjustments."
+    },
+    # 9. Training & Capacity Building
+    {
+        "Category": "Training & Capacity Building",
+        "Subcategory": "",
+        "Task Name": "Staff Onboarding & Training",
+        "Purpose": "Train staff on research protocols and tools.",
+        "Complexity": "Low",
+        "Estimated Hours": 20,
+        "Base Cost": 2000,
+        "Staff Role(s)": "Trainer, Coordinator",
+        "Participant Involvement": "No",
+        "Deliverables": "Training Manuals, Certification",
+        "Units": 2.0,
+        "Dependencies": "Protocol Finalized",
+        "Optional Bundles": "Onboarding + Toolkit Bundle",
+        "Tags/Modifiers": "Interactive, Modular",
+        "Notes": "Essential for new team members."
+    },
+    # 10. Analysis & Visualization
+    {
+        "Category": "Analysis & Visualization",
+        "Subcategory": "",
+        "Task Name": "Statistical Analysis & Dashboard Creation",
+        "Purpose": "Conduct analysis and create interactive dashboards.",
+        "Complexity": "High",
+        "Estimated Hours": 50,
+        "Base Cost": 4000,
+        "Staff Role(s)": "Data Scientist, Analyst",
+        "Participant Involvement": "No",
+        "Deliverables": "Analysis Report, Interactive Dashboard",
+        "Units": 4.0,
+        "Dependencies": "Data Collection completed",
+        "Optional Bundles": "Analysis + Visualization Bundle",
+        "Tags/Modifiers": "Data-driven, Customizable",
+        "Notes": "Advanced analytics may be applied."
+    },
+    # 11. Dissemination & Knowledge Translation
+    {
+        "Category": "Dissemination & Knowledge Translation",
+        "Subcategory": "",
+        "Task Name": "Report Writing & Manuscript Preparation",
+        "Purpose": "Develop comprehensive reports and manuscripts.",
+        "Complexity": "Medium",
+        "Estimated Hours": 35,
+        "Base Cost": 3000,
+        "Staff Role(s)": "Writer, Researcher",
+        "Participant Involvement": "No",
+        "Deliverables": "Final Report, Draft Manuscript",
+        "Units": 3.0,
+        "Dependencies": "Analysis completed",
+        "Optional Bundles": "Report + Presentation Bundle",
+        "Tags/Modifiers": "Academic, Peer-reviewed",
+        "Notes": "Suitable for grant proposals and publications."
+    },
+    # 12. Strategic Advisory & Program Management
+    {
+        "Category": "Strategic Advisory & Program Management",
+        "Subcategory": "",
+        "Task Name": "Project Coordination & Roadmap Development",
+        "Purpose": "Manage project timelines and develop strategic roadmaps.",
+        "Complexity": "Medium",
+        "Estimated Hours": 30,
+        "Base Cost": 2500,
+        "Staff Role(s)": "Project Manager, Advisor",
+        "Participant Involvement": "No",
+        "Deliverables": "Project Roadmap, Coordination Report",
+        "Units": 2.5,
+        "Dependencies": "Initial Planning",
+        "Optional Bundles": "Full-Service Management Bundle",
+        "Tags/Modifiers": "Strategic, Comprehensive",
+        "Notes": "Ideal for complex projects."
+    },
+    # 13. Data Governance, Compliance & Security
+    {
+        "Category": "Data Governance, Compliance & Security",
+        "Subcategory": "",
+        "Task Name": "HIPAA Compliance Audit & Data Governance Setup",
+        "Purpose": "Ensure HIPAA compliance and set up data governance protocols.",
+        "Complexity": "High",
+        "Estimated Hours": 40,
+        "Base Cost": 4000,
+        "Staff Role(s)": "Compliance Officer, Legal Advisor",
+        "Participant Involvement": "No",
+        "Deliverables": "Compliance Audit Report, Governance Framework",
+        "Units": 3.5,
+        "Dependencies": "IRB Approval, Existing Data Policies",
+        "Optional Bundles": "Compliance Bundle",
+        "Tags/Modifiers": "Regulatory, Secure",
+        "Notes": "Mandatory for healthcare data projects."
+    }
+]
+
+df_services = pd.DataFrame(data)
+
 # ----------------- Define Tabs -----------------
 tab0, tab1, tab2, tab3 = st.tabs(["📋 Scope Setup", "🧩 Manual Builder", "📊 Dashboard", "📤 Exports"])
 
 # ----------------- Tab 0: Scope Setup -----------------
 with tab0:
     st.subheader("Define Project Scope")
-    st.markdown("Fill out the project details to inform planning and proposals.")
+    st.markdown("Enter high-level project details and key phases that inform your proposal.")
     
-    scope_info = st.session_state.scope_info if "scope_info" in st.session_state else {}
-    
-    scope_name = st.text_input("Project Name", value=scope_info.get("Project Name", ""))
+    scope_name = st.text_input("Project Name", value=st.session_state.scope_info.get("Project Name", ""))
     project_type = st.selectbox("Project Type", ["Research", "Program Evaluation", "Consulting", "Other"], index=0)
     study_type = st.selectbox("Study Type", ["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"], index=0)
-    estimated_n = st.number_input("Target Sample Size (N)", min_value=1, value=int(scope_info.get("Estimated N", 10)))
+    estimated_n = st.number_input("Target Sample Size (N)", min_value=1, value=int(st.session_state.scope_info.get("Estimated N", 10)))
     timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=0)
-    study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
-    budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
+    study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(st.session_state.scope_info.get("Study Length (Months)", 6)))
+    budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(st.session_state.scope_info.get("Budget Estimate", 100000)))
     
     st.markdown("---")
-    st.markdown("### Define Key Milestones / Phases")
-    phase1_name = st.text_input("Phase 1 Title", value=scope_info.get("Phase 1 Title", "Phase 1: Discovery"))
-    phase1_desc = st.text_area("Phase 1 Description", value=scope_info.get("Phase 1 Description", "Initial research, stakeholder interviews, and planning."))
-    phase2_name = st.text_input("Phase 2 Title", value=scope_info.get("Phase 2 Title", "Phase 2: Implementation"))
-    phase2_desc = st.text_area("Phase 2 Description", value=scope_info.get("Phase 2 Description", "Execution of research activities, data collection, and analysis."))
-    phase3_name = st.text_input("Phase 3 Title", value=scope_info.get("Phase 3 Title", "Phase 3: Reporting"))
-    phase3_desc = st.text_area("Phase 3 Description", value=scope_info.get("Phase 3 Description", "Final report, insights, and recommendations."))
+    st.markdown("### Define Key Phases")
+    phase1_name = st.text_input("Phase 1 Title", value=st.session_state.scope_info.get("Phase 1 Title", "Phase 1: Discovery"))
+    phase1_desc = st.text_area("Phase 1 Description", value=st.session_state.scope_info.get("Phase 1 Description", "Initial exploration, needs assessment, and stakeholder mapping."))
+    phase2_name = st.text_input("Phase 2 Title", value=st.session_state.scope_info.get("Phase 2 Title", "Phase 2: Implementation"))
+    phase2_desc = st.text_area("Phase 2 Description", value=st.session_state.scope_info.get("Phase 2 Description", "Execute data collection, intervention, and initial analysis."))
+    phase3_name = st.text_input("Phase 3 Title", value=st.session_state.scope_info.get("Phase 3 Title", "Phase 3: Reporting"))
+    phase3_desc = st.text_area("Phase 3 Description", value=st.session_state.scope_info.get("Phase 3 Description", "Final analysis, reporting, and dissemination."))
     
     if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
@@ -103,126 +409,90 @@ with tab0:
             "Phase 3 Description": phase3_desc
         }
         st.success("Scope setup saved or updated!")
-        
+
 # ----------------- Tab 1: Manual Builder -----------------
 with tab1:
-    st.subheader("Manual Builder & Task Customization")
+    st.subheader("Manual Builder & Service Selection")
     
-    if task_df.empty:
-        st.warning("No tasks available in the library.")
+    st.markdown("#### 1. Choose a Core Service Category")
+    core_categories = df_services["Category"].unique()
+    selected_category = st.selectbox("Core Category", core_categories)
+    
+    # Filter services based on selected category
+    filtered_services = df_services[df_services["Category"] == selected_category]
+    # If Subcategory is available, let user choose it
+    if filtered_services["Subcategory"].nunique() > 1 or (filtered_services["Subcategory"].nunique() == 1 and filtered_services.iloc[0]["Subcategory"] != ""):
+        subcategories = filtered_services["Subcategory"].unique()
+        selected_subcategory = st.selectbox("Subcategory", subcategories)
+        filtered_services = filtered_services[filtered_services["Subcategory"] == selected_subcategory]
+    
+    selected_task = st.selectbox("Select Task", filtered_services["Task Name"].unique())
+    task_info = filtered_services[filtered_services["Task Name"] == selected_task].iloc[0]
+    
+    st.markdown("### Task Details")
+    st.markdown(f"**Task Name:** {task_info['Task Name']}")
+    st.markdown(f"**Purpose:** {task_info['Purpose']}")
+    st.markdown(f"**Complexity:** {task_info['Complexity']}")
+    st.markdown(f"**Estimated Hours:** {task_info['Estimated Hours']}")
+    st.markdown(f"**Base Cost:** ${task_info['Base Cost']:,.2f}")
+    st.markdown(f"**Staff Role(s):** {task_info['Staff Role(s)']}")
+    st.markdown(f"**Participant Involvement:** {task_info['Participant Involvement']}")
+    st.markdown(f"**Deliverables:** {task_info['Deliverables']}")
+    st.markdown(f"**Notes:** {task_info['Notes']}")
+    
+    # Editable modifiers stored in session_state.task_modifiers
+    current_mods = st.session_state.task_modifiers.get(selected_task, {})
+    
+    # Optional: Let the user edit task modifiers
+    if st.checkbox("Edit Task Modifiers"):
+        new_modifier = st.text_area("Custom Notes / Modifiers", value=current_mods.get("Custom Notes", task_info["Notes"]))
+        if st.button("Save Modifiers"):
+            st.session_state.task_modifiers[selected_task] = {"Custom Notes": new_modifier}
+            st.success("Modifiers updated!")
+    
+    st.markdown("---")
+    st.markdown("### Cost Simulation")
+    
+    # For certain tasks, offer detailed simulation inputs; otherwise, use a generic quantity multiplier.
+    if selected_task == "Self-Reported Survey Administration":
+        num_surveys = st.number_input("Number of Surveys", min_value=1, value=10)
+        survey_length = st.selectbox("Survey Length", ["Short (<10 min)", "Medium (10-30 min)", "Long (>30 min)"])
+        delivery_method = st.selectbox("Delivery Method", ["Email", "In-Person", "Online Portal"])
+        cost_multiplier = 1.0
+        if survey_length == "Medium (10-30 min)":
+            cost_multiplier *= 1.2
+        elif survey_length == "Long (>30 min)":
+            cost_multiplier *= 1.5
+        if delivery_method == "In-Person":
+            cost_multiplier *= 1.3
+        estimated_cost = task_info["Base Cost"] * num_surveys * cost_multiplier * (1 + overhead_percent/100)
+        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
+        quantity = num_surveys
+    elif selected_task == "Point-of-Care Blood Test":
+        num_tests = st.number_input("Number of Tests", min_value=1, value=5)
+        test_type = st.selectbox("Test Type", ["Standard", "Advanced (biomarker panel)"])
+        cost_multiplier = 1.0
+        if test_type == "Advanced (biomarker panel)":
+            cost_multiplier *= 1.8
+        estimated_cost = task_info["Base Cost"] * num_tests * cost_multiplier * (1 + overhead_percent/100)
+        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
+        quantity = num_tests
     else:
-        # Select task from library
-        domain = st.selectbox("Select Domain", sorted(task_df["Category"].dropna().unique()))
-        task_subset = task_df[task_df["Category"] == domain]
-        task_name = st.selectbox("Select Task", task_subset["Task Name"].unique())
-        task = task_subset[task_df["Task Name"] == task_name].iloc[0]
-        
-        st.markdown(f"**Description:** {task['Brief Description (Visuals)']}")
-        st.markdown(f"*Category:* {task['Category']}")
-        
-        # Option to show full description
-        if st.checkbox("Show Full Proposal Description"):
-            st.markdown(task["Longer Description (SOW)"])
-        
-        # Show additional task details (with editable modifiers)
-        current_mods = st.session_state.task_modifiers.get(task_name, {})
-        task_duration = current_mods.get("Task Duration", task.get("Task Duration", 0))
-        prerequisites = current_mods.get("Prerequisites", task.get("Prerequisites", ""))
-        custom_notes = current_mods.get("Custom Notes", task.get("Custom Notes", ""))
-        
-        st.markdown(f"**Task Duration:** {task_duration} days")
-        st.markdown(f"**Prerequisites:** {prerequisites}")
-        st.markdown(f"**Custom Notes:** {custom_notes}")
-        
-        # Option to edit task details
-        if st.checkbox("Edit Task Details"):
-            new_duration = st.number_input("Task Duration (days)", value=int(task_duration))
-            new_prereq = st.text_input("Prerequisites", value=prerequisites)
-            new_notes = st.text_area("Custom Notes", value=custom_notes)
-            if st.button("Save Task Details"):
-                st.session_state.task_modifiers[task_name] = {
-                    "Task Duration": new_duration,
-                    "Prerequisites": new_prereq,
-                    "Custom Notes": new_notes
-                }
-                st.success("Task details updated!")
-        
-        st.markdown("---")
-        st.markdown("### Cost Simulation")
-        
-        # Choose simulation mode: Standard vs Inverse Budgeting
-        sim_mode = st.radio("Simulation Mode", ["Standard", "Inverse Budgeting"], index=0)
-        
-        if sim_mode == "Standard":
-            num_participants = st.number_input("Estimated Participants", value=estimated_n)
-            use_translation = st.radio("Translation Needed?", ["No", "Yes"], index=0)
-            try:
-                default_t1 = int(float(task.get("Estimated Hours", 1)))
-            except Exception:
-                default_t1 = 1
-            tier1_hours = st.number_input("Tier 1 Hours", value=default_t1)
-            try:
-                default_t2 = int(float(task.get("Tier 2 Hours", 0)))
-            except Exception:
-                default_t2 = 0
-            tier2_hours = st.number_input("Tier 2 Hours", value=default_t2)
-            try:
-                default_t3 = int(float(task.get("Tier 3 Hours", 0)))
-            except Exception:
-                default_t3 = 0
-            tier3_hours = st.number_input("Tier 3 Hours", value=default_t3)
-            
-            # Calculate incentives if defined in scope (if not, it defaults to 0)
-            incentive_val = int(str(st.session_state.scope_info.get("Incentives", "$0")).replace("$", "").replace("+", "") or 0)
-            incentive_total = num_participants * incentive_val
-            other_costs = st.number_input("Other Costs (e.g., transcription, travel)", value=500.0)
-            
-            base_cost = tier1_hours * tier1_rate + tier2_hours * tier2_rate + tier3_hours * tier3_rate
-            total_raw = base_cost + incentive_total + other_costs
-            total_cost = total_raw * (1 + overhead_percent / 100)
-            total_units = total_cost / unit_price
-            
-            st.markdown(f"**Estimated Cost:** ${total_cost:,.2f}")
-            st.markdown(f"**Estimated Units:** {total_units:.2f}")
-            
-            if st.button("➕ Add Task to Project", key="std_add"):
-                st.session_state.sprint_log.append({
-                    "Domain": domain,
-                    "Task": task_name,
-                    "Participants": num_participants,
-                    "Translation": use_translation,
-                    "Units": round(total_units, 2),
-                    "Cost": round(total_cost, 2)
-                })
-                st.success("Task added to project!")
-        
-        else:
-            target_budget = st.number_input("Target Budget ($)", value=100000)
-            try:
-                default_t1 = int(float(task.get("Estimated Hours", 1)))
-            except Exception:
-                default_t1 = 1
-            tier1_hours = st.number_input("Tier 1 Hours", value=default_t1, key="inv_t1")
-            try:
-                default_t2 = int(float(task.get("Tier 2 Hours", 0)))
-            except Exception:
-                default_t2 = 0
-            tier2_hours = st.number_input("Tier 2 Hours", value=default_t2, key="inv_t2")
-            try:
-                default_t3 = int(float(task.get("Tier 3 Hours", 0)))
-            except Exception:
-                default_t3 = 0
-            tier3_hours = st.number_input("Tier 3 Hours", value=default_t3, key="inv_t3")
-            other_costs = st.number_input("Other Costs (e.g., transcription, travel)", value=500.0, key="inv_other")
-            
-            incentive_val = int(str(st.session_state.scope_info.get("Incentives", "$0")).replace("$", "").replace("+", "") or 0)
-            base_cost = tier1_hours * tier1_rate + tier2_hours * tier2_rate + tier3_hours * tier3_rate
-            if incentive_val > 0:
-                max_participants = (target_budget / (1 + overhead_percent / 100) - base_cost - other_costs) / incentive_val
-                max_participants = int(max_participants) if max_participants > 0 else 0
-                st.markdown(f"**Estimated Maximum Participants:** {max_participants}")
-            else:
-                st.info("Inverse Budgeting not applicable when no incentive cost is defined.")
+        # For tasks without detailed simulation inputs, allow the user to define a quantity.
+        quantity = st.number_input("Quantity", min_value=1, value=1)
+        estimated_cost = task_info["Base Cost"] * quantity * (1 + overhead_percent/100)
+        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
+    
+    if st.button("➕ Add Task to Project"):
+        st.session_state.sprint_log.append({
+            "Category": task_info["Category"],
+            "Subcategory": task_info["Subcategory"],
+            "Task": task_info["Task Name"],
+            "Quantity": quantity,
+            "Estimated Cost": round(estimated_cost, 2),
+            "Modifiers": st.session_state.task_modifiers.get(selected_task, {})
+        })
+        st.success("Task added to project!")
 
 # ----------------- Tab 2: Dashboard -----------------
 with tab2:
@@ -232,27 +502,25 @@ with tab2:
         df_log = pd.DataFrame(st.session_state.sprint_log)
         st.dataframe(df_log, use_container_width=True)
         
-        total_units = df_log['Units'].sum()
-        total_cost = df_log['Cost'].sum()
-        st.markdown(f"**Total Units Used:** {total_units:.2f}")
-        st.markdown(f"**Total Cost:** ${total_cost:,.2f}")
+        total_cost = df_log["Estimated Cost"].sum()
+        st.markdown(f"**Total Project Cost:** ${total_cost:,.2f}")
         
-        # Visualization: Cost Breakdown by Domain
-        cost_by_domain = df_log.groupby("Domain")["Cost"].sum().reset_index()
+        # Simple cost breakdown by Category
+        cost_by_category = df_log.groupby("Category")["Estimated Cost"].sum().reset_index()
         fig, ax = plt.subplots()
-        ax.bar(cost_by_domain["Domain"], cost_by_domain["Cost"])
-        ax.set_xlabel("Domain")
+        ax.bar(cost_by_category["Category"], cost_by_category["Estimated Cost"])
+        ax.set_xlabel("Category")
         ax.set_ylabel("Cost ($)")
-        ax.set_title("Cost Breakdown by Domain")
+        ax.set_title("Cost Breakdown by Category")
         st.pyplot(fig)
     else:
-        st.info("No tasks added to the project yet.")
-        
-# ----------------- Tab 3: Exports & Proposal -----------------
+        st.info("No tasks have been added to the project yet.")
+
+# ----------------- Tab 3: Exports & Proposal Generation -----------------
 with tab3:
     st.subheader("Export & Proposal Generation")
-    scope = st.session_state.scope_info if "scope_info" in st.session_state else {}
-    log = st.session_state.sprint_log
+    scope = st.session_state.scope_info
+    sprint_log = st.session_state.sprint_log
     
     if scope:
         st.markdown(f"### Project: {scope.get('Project Name', 'Untitled')}")
@@ -270,25 +538,24 @@ with tab3:
         """)
     else:
         st.info("No project scope defined yet.")
-        
+    
     st.markdown("---")
     st.markdown("### Task Breakdown")
-    if log:
-        for task in log:
-            st.markdown(f"**{task['Task']}** — Est. {task['Units']} units (${task['Cost']})")
-            desc = task_df[task_df["Task Name"] == task["Task"]]["Longer Description (SOW)"]
-            if not desc.empty:
-                st.markdown(desc.iloc[0])
+    if sprint_log:
+        for task in sprint_log:
+            st.markdown(f"**{task['Task']}** (Category: {task['Category']}) — Qty: {task['Quantity']}, Cost: ${task['Estimated Cost']}")
+            if task.get("Modifiers"):
+                st.markdown(f"*Modifiers:* {task['Modifiers'].get('Custom Notes', '')}")
     else:
         st.info("No tasks added to the project.")
-        
+    
     # Proposal Generation Function
     def generate_proposal(scope, sprint_log):
         proposal = ""
         proposal += "# Proposal for " + scope.get("Project Name", "Untitled Project") + "\n\n"
         proposal += "## Introduction\n"
-        proposal += ("This proposal outlines our approach for the project, including methodology, timeline, and cost breakdown. "
-                     "Our team is committed to delivering high-quality insights tailored to your needs.\n\n")
+        proposal += ("This proposal outlines our comprehensive approach for the project, including our methodology, timeline, and cost breakdown. "
+                     "Our team is committed to delivering high-quality outcomes tailored to your needs.\n\n")
         proposal += "## Project Overview\n"
         proposal += f"- **Project Type:** {scope.get('Project Type', '')}\n"
         proposal += f"- **Study Type:** {scope.get('Study Type', '')}\n"
@@ -304,23 +571,13 @@ with tab3:
         
         proposal += "## Detailed Task Breakdown\n"
         for task in sprint_log:
-            proposal += f"### {task['Task']}\n"
-            proposal += f"- **Domain:** {task['Domain']}\n"
-            proposal += f"- **Participants:** {task['Participants']}\n"
-            proposal += f"- **Translation Needed:** {task['Translation']}\n"
-            proposal += f"- **Units:** {task['Units']}\n"
-            proposal += f"- **Cost:** ${task['Cost']}\n"
-            mods = st.session_state.task_modifiers.get(task['Task'], {})
-            if mods:
-                proposal += f"- **Task Duration:** {mods.get('Task Duration', '')} days\n"
-                proposal += f"- **Prerequisites:** {mods.get('Prerequisites', '')}\n"
-                proposal += f"- **Notes:** {mods.get('Custom Notes', '')}\n"
+            proposal += f"### {task['Task']} (Category: {task['Category']})\n"
+            proposal += f"- **Quantity:** {task['Quantity']}\n"
+            proposal += f"- **Estimated Cost:** ${task['Estimated Cost']}\n"
+            if task.get("Modifiers"):
+                proposal += f"- **Modifiers:** {task['Modifiers'].get('Custom Notes', '')}\n"
             proposal += "\n"
-            desc = task_df[task_df["Task Name"] == task["Task"]]["Longer Description (SOW)"]
-            if not desc.empty:
-                proposal += f"{desc.iloc[0]}\n\n"
-                
-        total_cost = sum(task["Cost"] for task in sprint_log)
+        total_cost = sum(task["Estimated Cost"] for task in sprint_log)
         proposal += "## Cost Breakdown\n"
         proposal += f"**Total Project Cost:** ${total_cost:,.2f}\n\n"
         proposal += "## Timeline & Deliverables\n"
@@ -331,5 +588,5 @@ with tab3:
         return proposal
     
     if st.button("Generate Proposal Document"):
-        proposal_text = generate_proposal(scope, log)
+        proposal_text = generate_proposal(scope, sprint_log)
         st.download_button("Download Proposal Markdown", proposal_text, file_name="proposal.md")
