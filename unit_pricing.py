@@ -52,7 +52,6 @@ with tab0:
     incentives = st.selectbox("Use of Incentives", ["None", "$25", "$50", "$100+"], index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None")))
     tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))
     timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))
-)
 study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
 budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
 
