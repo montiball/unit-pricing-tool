@@ -41,7 +41,7 @@ with tab0:
     st.subheader("📋 Define Project Scope")
     st.markdown("Fill out initial project info to inform planning and exports.")
 
-                    scope_info = st.session_state.scope_info if 'scope_info' in st.session_state else {}
+    scope_info = st.session_state.scope_info if 'scope_info' in st.session_state else {}
 
     scope_name = st.text_input("Project Name", value=scope_info.get("Project Name", ""))
     study_type = st.selectbox("Study Type", ["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"], index=["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"].index(scope_info.get("Study Type", "Exploratory")))
