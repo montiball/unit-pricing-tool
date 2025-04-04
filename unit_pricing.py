@@ -26,10 +26,12 @@ if "scope_info" not in st.session_state:
     st.session_state.scope_info = {}
 if "task_modifiers" not in st.session_state:
     st.session_state.task_modifiers = {}
+if "phases" not in st.session_state:
+    st.session_state.phases = []  # List of phase dictionaries
 
 # ----------------- Comprehensive Service Database -----------------
+# (Sample entries; expand as needed for your 13 core buckets.)
 data = [
-    # 1. Discovery & Design
     {
         "Category": "Discovery & Design",
         "Subcategory": "",
@@ -47,7 +49,6 @@ data = [
         "Tags/Modifiers": "Remote, Quick-turnaround",
         "Notes": "Ideal for early-stage projects."
     },
-    # 2. Stakeholder & Community Engagement
     {
         "Category": "Stakeholder & Community Engagement",
         "Subcategory": "",
@@ -65,7 +66,6 @@ data = [
         "Tags/Modifiers": "Culturally tailored, Virtual/In-person",
         "Notes": "Adjust group size based on client needs."
     },
-    # 3. Study Planning & IRB
     {
         "Category": "Study Planning & IRB",
         "Subcategory": "",
@@ -83,7 +83,6 @@ data = [
         "Tags/Modifiers": "Regulatory, Detailed",
         "Notes": "Essential for clinical research."
     },
-    # 5. Data Collection & Management (Examples)
     {
         "Category": "Data Collection & Management",
         "Subcategory": "Self-Reported Survey",
@@ -118,7 +117,6 @@ data = [
         "Tags/Modifiers": "Standard, Advanced",
         "Notes": "Advanced options available."
     },
-    # 12. Strategic Advisory & Program Management
     {
         "Category": "Strategic Advisory & Program Management",
         "Subcategory": "",
@@ -153,7 +151,7 @@ with tab0:
     project_description = st.text_area("Project Description", value=st.session_state.scope_info.get("Project Description", ""))
     partner_name = st.text_input("Partner Name", value=st.session_state.scope_info.get("Partner Name", ""))
     
-    # More specific project types (expandable list)
+    # More specific project types
     project_type = st.selectbox("Project Type", 
                                 ["Pilot Study", "Cross-sectional", "Longitudinal", "Mixed Methods", "Experimental", 
                                  "Evaluation", "Education", "Training", "Strategic Guidance", "Other"],
@@ -162,38 +160,56 @@ with tab0:
     target_sample_size = st.number_input("Target Sample Size (N)", min_value=1, value=int(st.session_state.scope_info.get("Estimated N", 50)))
     rough_budget = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(st.session_state.scope_info.get("Budget Estimate", 100000)))
     
-    # Study length and timeline preference
     study_length = st.number_input("Study Length (Months)", min_value=1, value=int(st.session_state.scope_info.get("Study Length (Months)", 12)))
     timeline_preference = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=0)
     
-    # Date fields (end date is computed automatically)
     project_start_date = st.date_input("Project Start Date", value=st.session_state.scope_info.get("Project Start Date", date.today()))
+    # Automatically compute end date based on study length
     project_end_date = project_start_date + relativedelta(months=study_length)
     st.markdown(f"**Computed Project End Date:** {project_end_date}")
     
     st.markdown("---")
-    st.markdown("### Define Key Phases / Milestones")
-    st.markdown("Define up to three phases. For each phase, provide a title, a brief description, and the phase start and end dates.")
+    st.markdown("### Define Project Phases / Milestones")
+    st.markdown("Use the section below to add as many phases as needed. These phases are for internal planning (e.g., timeline visualizations) and proposal structuring.")
     
-    phase1_title = st.text_input("Phase 1 Title", value=st.session_state.scope_info.get("Phase 1 Title", "Phase 1: Discovery"))
-    phase1_desc = st.text_area("Phase 1 Description", value=st.session_state.scope_info.get("Phase 1 Description", "Initial exploration, needs assessment, and stakeholder mapping."))
-    phase1_start = st.date_input("Phase 1 Start Date", value=st.session_state.scope_info.get("Phase 1 Start Date", project_start_date))
-    phase1_end = st.date_input("Phase 1 End Date", value=st.session_state.scope_info.get("Phase 1 End Date", project_start_date + relativedelta(months=3)))
+    # Initialize phases list if not already done
+    if "phases" not in st.session_state:
+        st.session_state.phases = []
     
-    phase2_title = st.text_input("Phase 2 Title", value=st.session_state.scope_info.get("Phase 2 Title", "Phase 2: Implementation"))
-    phase2_desc = st.text_area("Phase 2 Description", value=st.session_state.scope_info.get("Phase 2 Description", "Execute data collection, interventions, and initial analysis."))
-    phase2_start = st.date_input("Phase 2 Start Date", value=st.session_state.scope_info.get("Phase 2 Start Date", phase1_end + relativedelta(days=1)))
-    phase2_end = st.date_input("Phase 2 End Date", value=st.session_state.scope_info.get("Phase 2 End Date", phase2_start + relativedelta(months=5)))
+    # Display current phases
+    for idx, phase in enumerate(st.session_state.phases):
+        with st.expander(f"Phase {idx+1}: {phase.get('Title', 'New Phase')}"):
+            phase_title = st.text_input("Phase Title", value=phase.get("Title", ""), key=f"phase_title_{idx}")
+            phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
+            phase_start = st.date_input("Phase Start Date", value=phase.get("Start", project_start_date), key=f"phase_start_{idx}")
+            phase_end = st.date_input("Phase End Date", value=phase.get("End", project_end_date), key=f"phase_end_{idx}")
+            # Update the phase in session state
+            st.session_state.phases[idx] = {
+                "Title": phase_title,
+                "Description": phase_desc,
+                "Start": phase_start,
+                "End": phase_end
+            }
+            # Optionally, allow removal of a phase
+            if st.button("Remove Phase", key=f"remove_phase_{idx}"):
+                st.session_state.phases.pop(idx)
+                st.experimental_rerun()
     
-    phase3_title = st.text_input("Phase 3 Title", value=st.session_state.scope_info.get("Phase 3 Title", "Phase 3: Reporting"))
-    phase3_desc = st.text_area("Phase 3 Description", value=st.session_state.scope_info.get("Phase 3 Description", "Final analysis, reporting, and dissemination of findings."))
-    phase3_start = st.date_input("Phase 3 Start Date", value=st.session_state.scope_info.get("Phase 3 Start Date", phase2_end + relativedelta(days=1)))
-    phase3_end = st.date_input("Phase 3 End Date", value=st.session_state.scope_info.get("Phase 3 End Date", project_end_date))
+    # Button to add a new phase
+    if st.button("Add New Phase"):
+        st.session_state.phases.append({
+            "Title": "",
+            "Description": "",
+            "Start": project_start_date,
+            "End": project_end_date
+        })
+        st.experimental_rerun()
     
     st.markdown("---")
-    st.markdown("### Objectives / Deliverables")
-    objectives = st.text_area("Key Objectives / Deliverables", value=st.session_state.scope_info.get("Objectives", 
-                                    "List the main deliverables (e.g., Final Report, Data Dashboard, Strategic Roadmap)."))
+    st.markdown("### Broad Project Goals")
+    # Instead of detailed objectives from tasks, capture high-level project goals here.
+    project_goals = st.text_area("Enter broad project goals (e.g., maximize ROI, establish a scalable model, strategic outcomes)", 
+                                 value=st.session_state.scope_info.get("Project Goals", ""))
     
     if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
@@ -207,19 +223,7 @@ with tab0:
             "Timeline": timeline_preference,
             "Project Start Date": project_start_date,
             "Project End Date": project_end_date,
-            "Phase 1 Title": phase1_title,
-            "Phase 1 Description": phase1_desc,
-            "Phase 1 Start Date": phase1_start,
-            "Phase 1 End Date": phase1_end,
-            "Phase 2 Title": phase2_title,
-            "Phase 2 Description": phase2_desc,
-            "Phase 2 Start Date": phase2_start,
-            "Phase 2 End Date": phase2_end,
-            "Phase 3 Title": phase3_title,
-            "Phase 3 Description": phase3_desc,
-            "Phase 3 Start Date": phase3_start,
-            "Phase 3 End Date": phase3_end,
-            "Objectives": objectives
+            "Project Goals": project_goals
         }
         st.success("Scope Setup saved or updated!")
 
@@ -231,7 +235,6 @@ with tab1:
     core_categories = df_services["Category"].unique()
     selected_category = st.selectbox("Core Category", core_categories)
     
-    # Filter services based on selected category
     filtered_services = df_services[df_services["Category"] == selected_category]
     if filtered_services["Subcategory"].nunique() > 1 or (filtered_services["Subcategory"].nunique() == 1 and filtered_services.iloc[0]["Subcategory"] != ""):
         subcategories = filtered_services["Subcategory"].unique()
@@ -241,7 +244,7 @@ with tab1:
     selected_task = st.selectbox("Select Task", filtered_services["Task Name"].unique())
     task_info = filtered_services[filtered_services["Task Name"] == selected_task].iloc[0]
     
-    # Check for overrides in session state for this task
+    # Check for overrides for this task
     overrides = st.session_state.task_modifiers.get(selected_task, {})
     effective_hours = overrides.get("Estimated Hours", task_info["Estimated Hours"])
     effective_base_cost = overrides.get("Base Cost", task_info["Base Cost"])
@@ -259,7 +262,6 @@ with tab1:
     st.markdown(f"**Deliverables:** {task_info['Deliverables']}")
     st.markdown(f"**Notes:** {effective_notes}")
     
-    # Editable task details
     if st.checkbox("Edit Task Details"):
         new_est_hours = st.number_input("Estimated Hours", value=effective_hours, key="edit_est_hours")
         new_base_cost = st.number_input("Base Cost", value=effective_base_cost, key="edit_base_cost")
@@ -277,20 +279,13 @@ with tab1:
     
     st.markdown("---")
     st.markdown("### Assign Task to a Phase")
-    phases = []
-    scope = st.session_state.scope_info
-    if scope:
-        for i in range(1, 4):
-            title = scope.get(f"Phase {i} Title", "")
-            if title:
-                phases.append(title)
+    phases = [phase["Title"] for phase in st.session_state.phases if phase.get("Title")]
     phase_assignment = st.selectbox("Select Phase for this Task", options=phases) if phases else None
     
     st.markdown("---")
     st.markdown("### Cost Simulation")
     if selected_task == "Self-Reported Survey Administration":
-        # Default number of surveys could be pre-populated using target_sample_size
-        num_surveys = st.number_input("Number of Surveys", min_value=1, value=scope.get("Estimated N", 50))
+        num_surveys = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
         survey_length = st.selectbox("Survey Length", ["Short (<10 min)", "Medium (10-30 min)", "Long (>30 min)"])
         delivery_method = st.selectbox("Delivery Method", ["Email", "In-Person", "Online Portal"])
         cost_multiplier = 1.0
@@ -335,7 +330,6 @@ with tab1:
 with tab2:
     st.subheader("Project Dashboard & Visualization")
     
-    # Display scope info summary if available
     scope = st.session_state.scope_info
     if scope:
         st.markdown("### Project Overview")
@@ -347,22 +341,13 @@ with tab2:
         st.markdown(f"**Study Length (Months):** {scope.get('Study Length (Months)', '')}")
         st.markdown(f"**Timeline:** {scope.get('Timeline', '')}")
         st.markdown(f"**Project Dates:** {scope.get('Project Start Date', '')} to {scope.get('Project End Date', '')}")
-        st.markdown("### Phases")
-        phases = []
-        for i in range(1, 4):
-            phase = {
-                "Title": scope.get(f"Phase {i} Title", ""),
-                "Description": scope.get(f"Phase {i} Description", ""),
-                "Start": scope.get(f"Phase {i} Start Date", None),
-                "End": scope.get(f"Phase {i} End Date", None)
-            }
-            if phase["Title"]:
-                phases.append(phase)
-        for phase in phases:
-            st.markdown(f"**{phase['Title']}**: {phase['Description']}")
-            st.markdown(f"Dates: {phase['Start']} to {phase['End']}")
-        st.markdown("### Objectives / Deliverables")
-        st.markdown(scope.get("Objectives", ""))
+        st.markdown("### Project Phases")
+        for phase in st.session_state.phases:
+            if phase.get("Title"):
+                st.markdown(f"**{phase['Title']}**: {phase['Description']}")
+                st.markdown(f"Dates: {phase['Start']} to {phase['End']}")
+        st.markdown("### Broad Project Goals")
+        st.markdown(scope.get("Project Goals", ""))
     
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
@@ -371,7 +356,7 @@ with tab2:
         total_cost = df_log["Estimated Cost"].sum()
         st.markdown(f"**Total Project Cost:** ${total_cost:,.2f}")
         
-        # Bar chart by category (smaller size)
+        # Bar chart by category
         cost_by_category = df_log.groupby("Category")["Estimated Cost"].sum().reset_index()
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.bar(cost_by_category["Category"], cost_by_category["Estimated Cost"])
@@ -380,7 +365,7 @@ with tab2:
         ax.set_title("Cost by Category")
         st.pyplot(fig)
         
-        # Pie chart by phase (if tasks have been assigned a phase)
+        # Pie chart by phase
         if "Phase" in df_log.columns and df_log["Phase"].notna().any():
             cost_by_phase = df_log.groupby("Phase")["Estimated Cost"].sum()
             fig2, ax2 = plt.subplots()
@@ -389,7 +374,8 @@ with tab2:
             st.pyplot(fig2)
         
         # Gantt chart for phases
-        if scope and phases:
+        phases = [phase for phase in st.session_state.phases if phase.get("Title")]
+        if phases:
             st.markdown("### Project Timeline (Gantt Chart)")
             fig3, ax3 = plt.subplots(figsize=(10, len(phases) * 0.5 + 1))
             for i, phase in enumerate(phases):
@@ -424,11 +410,13 @@ with tab3:
 - **Study Length (Months):** {scope.get('Study Length (Months)', '')}
 - **Budget Estimate:** ${scope.get('Budget Estimate', 0):,}
 - **Project Dates:** {scope.get('Project Start Date', '')} to {scope.get('Project End Date', '')}
-- **Phases:**
-  - **{scope.get('Phase 1 Title', '')}:** {scope.get('Phase 1 Description', '')} (Dates: {scope.get('Phase 1 Start Date', '')} to {scope.get('Phase 1 End Date', '')})
-  - **{scope.get('Phase 2 Title', '')}:** {scope.get('Phase 2 Description', '')} (Dates: {scope.get('Phase 2 Start Date', '')} to {scope.get('Phase 2 End Date', '')})
-  - **{scope.get('Phase 3 Title', '')}:** {scope.get('Phase 3 Description', '')} (Dates: {scope.get('Phase 3 Start Date', '')} to {scope.get('Phase 3 End Date', '')})
         """)
+        st.markdown("### Project Phases")
+        for phase in st.session_state.phases:
+            if phase.get("Title"):
+                st.markdown(f"**{phase['Title']}**: {phase['Description']} (Dates: {phase['Start']} to {phase['End']})")
+        st.markdown("### Broad Project Goals")
+        st.markdown(scope.get("Project Goals", ""))
     else:
         st.info("No project scope defined yet.")
     
@@ -458,16 +446,15 @@ with tab3:
         proposal += f"- **Budget Estimate:** ${scope.get('Budget Estimate', 0):,}\n"
         proposal += f"- **Project Dates:** {scope.get('Project Start Date', '')} to {scope.get('Project End Date', '')}\n\n"
         
-        proposal += "## Phases\n"
-        proposal += f"### {scope.get('Phase 1 Title', '')}\n{scope.get('Phase 1 Description', '')}\n"
-        proposal += f"**Dates:** {scope.get('Phase 1 Start Date', '')} to {scope.get('Phase 1 End Date', '')}\n\n"
-        proposal += f"### {scope.get('Phase 2 Title', '')}\n{scope.get('Phase 2 Description', '')}\n"
-        proposal += f"**Dates:** {scope.get('Phase 2 Start Date', '')} to {scope.get('Phase 2 End Date', '')}\n\n"
-        proposal += f"### {scope.get('Phase 3 Title', '')}\n{scope.get('Phase 3 Description', '')}\n"
-        proposal += f"**Dates:** {scope.get('Phase 3 Start Date', '')} to {scope.get('Phase 3 End Date', '')}\n\n"
+        proposal += "## Project Phases\n"
+        for phase in st.session_state.phases:
+            if phase.get("Title"):
+                proposal += f"### {phase['Title']}\n"
+                proposal += f"{phase['Description']}\n"
+                proposal += f"**Dates:** {phase['Start']} to {phase['End']}\n\n"
         
-        proposal += "## Objectives / Deliverables\n"
-        proposal += scope.get("Objectives", "") + "\n\n"
+        proposal += "## Broad Project Goals\n"
+        proposal += scope.get("Project Goals", "") + "\n\n"
         
         proposal += "## Detailed Task Breakdown\n"
         for task in sprint_log:
@@ -486,7 +473,7 @@ with tab3:
         proposal += "## Conclusion\n"
         proposal += ("Based on our experience and the defined scope, we are confident that our approach will maximize ROI "
                      "and deliver actionable outcomes for your organization.\n\n")
-        # TODO: Integrate a library of longer, method-specific descriptions for a multi-page proposal.
+        # Placeholder for additional method-specific descriptions
         proposal += "*(End of Proposal)*\n"
         return proposal
     
