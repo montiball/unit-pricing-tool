@@ -29,6 +29,68 @@ if "task_modifiers" not in st.session_state:
 if "phases" not in st.session_state:
     st.session_state.phases = []  # List of phase dictionaries
 
+# ----------------- Default Template Cost Function -----------------
+def compute_task_cost(task_category, subcategory, num_units, custom_overrides=None):
+    """
+    Computes labor cost based on default templates.
+    
+    For Data Collection & Management tasks:
+      - If subcategory is "Self-Reported Survey": fixed overhead for Tier 1 and 2 plus variable hours for Tier 3 per participant.
+      - If subcategory is "Clinical Measure": use a fixed default breakdown.
+    
+    For other categories, you can define fixed defaults.
+    
+    Returns:
+        labor_cost, tier1_hours, tier2_hours, tier3_hours
+    """
+    # Default templates by category and subcategory
+    if task_category == "Data Collection & Management":
+        if subcategory == "Self-Reported Survey":
+            defaults = {
+                "tier1_fixed": 2,      # hours (strategy/partner-facing)
+                "tier2_fixed": 1,      # hours (management)
+                "tier3_per_unit": 0.2  # hours per survey/participant
+            }
+        elif subcategory == "Clinical Measure":
+            defaults = {
+                "tier1_fixed": 1,      # less strategy
+                "tier2_fixed": 1,      # management
+                "tier3_fixed": 1       # execution (fixed per test)
+            }
+        else:
+            defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
+    elif task_category == "Discovery & Design":
+        defaults = {"tier1_fixed": 4, "tier2_fixed": 2, "tier3_fixed": 1}
+    else:
+        defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
+    
+    # Allow custom overrides to update defaults
+    if custom_overrides:
+        defaults.update(custom_overrides)
+    
+    # Calculate hours based on category
+    if task_category == "Data Collection & Management":
+        if subcategory == "Self-Reported Survey":
+            tier1_hours = defaults.get("tier1_fixed", 2)
+            tier2_hours = defaults.get("tier2_fixed", 1)
+            tier3_hours = num_units * defaults.get("tier3_per_unit", 0.2)
+        elif subcategory == "Clinical Measure":
+            tier1_hours = defaults.get("tier1_fixed", 1)
+            tier2_hours = defaults.get("tier2_fixed", 1)
+            tier3_hours = defaults.get("tier3_fixed", 1)  # Fixed hours per test
+        else:
+            tier1_hours = defaults.get("tier1_fixed", 1)
+            tier2_hours = defaults.get("tier2_fixed", 1)
+            tier3_hours = defaults.get("tier3_fixed", 1)
+    else:
+        tier1_hours = defaults.get("tier1_fixed", 1)
+        tier2_hours = defaults.get("tier2_fixed", 1)
+        tier3_hours = defaults.get("tier3_fixed", 1)
+    
+    # Calculate labor cost using global rates from sidebar
+    labor_cost = (tier1_hours * tier1_rate) + (tier2_hours * tier2_rate) + (tier3_hours * tier3_rate)
+    return labor_cost, tier1_hours, tier2_hours, tier3_hours
+
 # ----------------- Comprehensive Service Database -----------------
 data = [
     {
@@ -179,7 +241,6 @@ with tab0:
                 phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
                 phase_start = st.date_input("Phase Start Date", value=phase.get("Start", project_start_date), key=f"phase_start_{idx}")
                 phase_end = st.date_input("Phase End Date", value=phase.get("End", project_end_date), key=f"phase_end_{idx}")
-                # Update the phase in session state
                 st.session_state.phases[idx] = {
                     "Title": phase_title,
                     "Description": phase_desc,
@@ -187,7 +248,6 @@ with tab0:
                     "End": phase_end
                 }
                 if st.button("Remove Phase", key=f"remove_phase_{idx}"):
-                    # Remove the phase without calling experimental_rerun()
                     phases_copy = st.session_state.phases.copy()
                     phases_copy.pop(idx)
                     st.session_state.phases = phases_copy
@@ -279,33 +339,33 @@ with tab1:
     
     st.markdown("---")
     st.markdown("### Cost Simulation")
-    if selected_task == "Self-Reported Survey Administration":
-        num_surveys = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
-        survey_length = st.selectbox("Survey Length", ["Short (<10 min)", "Medium (10-30 min)", "Long (>30 min)"])
-        delivery_method = st.selectbox("Delivery Method", ["Email", "In-Person", "Online Portal"])
-        cost_multiplier = 1.0
-        if survey_length == "Medium (10-30 min)":
-            cost_multiplier *= 1.2
-        elif survey_length == "Long (>30 min)":
-            cost_multiplier *= 1.5
-        if delivery_method == "In-Person":
-            cost_multiplier *= 1.3
-        estimated_cost = effective_base_cost * num_surveys * cost_multiplier * (1 + overhead_percent/100)
-        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
-        quantity = num_surveys
-    elif selected_task == "Point-of-Care Blood Test":
-        num_tests = st.number_input("Number of Tests", min_value=1, value=5)
-        test_type = st.selectbox("Test Type", ["Standard", "Advanced (biomarker panel)"])
-        cost_multiplier = 1.0
-        if test_type == "Advanced (biomarker panel)":
-            cost_multiplier *= 1.8
-        estimated_cost = effective_base_cost * num_tests * cost_multiplier * (1 + overhead_percent/100)
-        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
-        quantity = num_tests
+    # For tasks in Data Collection & Management, use default templates:
+    if task_info["Category"] == "Data Collection & Management":
+        if task_info["Subcategory"] == "Self-Reported Survey":
+            num_units = st.number_input("Number of Surveys", min_value=1, value=st.session_state.scope_info.get("Estimated N", 50))
+            labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
+            total_cost = labor_cost * (1 + overhead_percent/100)
+            st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
+            st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
+            st.markdown(f"**Estimated Total Cost (with overhead):** ${total_cost:,.2f}")
+            quantity = num_units
+        elif task_info["Subcategory"] == "Clinical Measure":
+            num_units = st.number_input("Number of Tests", min_value=1, value=5)
+            labor_cost, t1, t2, t3 = compute_task_cost(task_info["Category"], task_info["Subcategory"], num_units, st.session_state.task_modifiers.get(selected_task, {}))
+            total_cost = labor_cost * (1 + overhead_percent/100)
+            st.markdown(f"**Computed Labor Cost:** ${labor_cost:,.2f}")
+            st.markdown(f"Breakdown: Tier 1 = {t1} hrs, Tier 2 = {t2} hrs, Tier 3 = {t3} hrs")
+            st.markdown(f"**Estimated Total Cost (with overhead):** ${total_cost:,.2f}")
+            quantity = num_units
+        else:
+            quantity = st.number_input("Quantity", min_value=1, value=1)
+            total_cost = effective_base_cost * quantity * (1 + overhead_percent/100)
+            st.markdown(f"**Estimated Total Cost:** ${total_cost:,.2f}")
     else:
+        # For tasks not in Data Collection, use the base simulation logic.
         quantity = st.number_input("Quantity", min_value=1, value=1)
-        estimated_cost = effective_base_cost * quantity * (1 + overhead_percent/100)
-        st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
+        total_cost = effective_base_cost * quantity * (1 + overhead_percent/100)
+        st.markdown(f"**Estimated Total Cost:** ${total_cost:,.2f}")
     
     if st.button("➕ Add Task to Project"):
         task_entry = {
@@ -313,7 +373,7 @@ with tab1:
             "Subcategory": task_info["Subcategory"],
             "Task": task_info["Task Name"],
             "Quantity": quantity,
-            "Estimated Cost": round(estimated_cost, 2),
+            "Estimated Cost": round(total_cost, 2),
             "Modifiers": st.session_state.task_modifiers.get(selected_task, {})
         }
         if phase_assignment:
