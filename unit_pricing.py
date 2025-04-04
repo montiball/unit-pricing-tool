@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import date
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import openai
 
-# Set your OpenAI API key from secrets (ensure it's stored securely)
+# Set your OpenAI API key securely from Streamlit secrets.
 openai.api_key = st.secrets["openai"]["api_key"]
 
 # ----------------- Page Configuration -----------------
@@ -33,35 +33,26 @@ if "scope_info" not in st.session_state:
     st.session_state.scope_info = {}
 if "task_modifiers" not in st.session_state:
     st.session_state.task_modifiers = {}
+# We'll store phases as a list of dictionaries.
 if "phases" not in st.session_state:
-    st.session_state.phases = []  # List of phase dictionaries
+    st.session_state.phases = []
 
 # ----------------- Default Template Cost Function -----------------
 def compute_task_cost(task_category, subcategory, num_units, custom_overrides=None):
     """
     Computes labor cost based on default templates.
-    
     For Data Collection & Management tasks:
       - "Self-Reported Survey": fixed overhead for Tier 1 and Tier 2 plus variable hours for Tier 3 per unit.
       - "Clinical Measure": fixed hours for all tiers.
     For other categories, fixed defaults are used.
     
-    Returns:
-        labor_cost, tier1_hours, tier2_hours, tier3_hours
+    Returns: labor_cost, tier1_hours, tier2_hours, tier3_hours
     """
     if task_category == "Data Collection & Management":
         if subcategory == "Self-Reported Survey":
-            defaults = {
-                "tier1_fixed": 2,      # hours for strategy
-                "tier2_fixed": 1,      # hours for management
-                "tier3_per_unit": 0.2  # hours per survey/participant
-            }
+            defaults = {"tier1_fixed": 2, "tier2_fixed": 1, "tier3_per_unit": 0.2}
         elif subcategory == "Clinical Measure":
-            defaults = {
-                "tier1_fixed": 1,
-                "tier2_fixed": 1,
-                "tier3_fixed": 1       # fixed hours per test
-            }
+            defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
         else:
             defaults = {"tier1_fixed": 1, "tier2_fixed": 1, "tier3_fixed": 1}
     elif task_category == "Discovery & Design":
@@ -178,7 +169,8 @@ data = [
 df_services = pd.DataFrame(data)
 
 # ----------------- Define Tabs -----------------
-tab0, tab1, tab2, tab3 = st.tabs(["📋 Scope Setup", "🧩 Manual Builder", "📊 Dashboard", "📤 Exports"])
+# Renaming Tab 2 to "Project Cart and Dashboard"
+tab0, tab1, tab2, tab3 = st.tabs(["📋 Scope Setup", "🧩 Manual Builder", "🛒 Project Cart and Dashboard", "📤 Exports"])
 
 # ----------------- Tab 0: Scope Setup -----------------
 with tab0:
@@ -206,35 +198,29 @@ with tab0:
     
     st.markdown("---")
     st.markdown("### Define Project Phases / Milestones")
-    st.markdown("Add as many phases as needed. Each phase is for internal planning and proposal structuring.")
+    st.markdown("Instead of manually choosing dates, please specify the number of phases and the duration (in weeks) for each phase. The start and end dates will be computed automatically.")
+    num_phases = st.number_input("Number of Phases", min_value=1, value=len(st.session_state.phases) if st.session_state.phases else 3)
     
-    if st.session_state.phases:
-        for idx, phase in enumerate(st.session_state.phases):
-            with st.expander(f"Phase {idx+1}: {phase.get('Title', 'New Phase')}"):
-                phase_title = st.text_input("Phase Title", value=phase.get("Title", ""), key=f"phase_title_{idx}")
-                phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
-                phase_start = st.date_input("Phase Start Date", value=phase.get("Start", project_start_date), key=f"phase_start_{idx}")
-                phase_end = st.date_input("Phase End Date", value=phase.get("End", project_end_date), key=f"phase_end_{idx}")
-                st.session_state.phases[idx] = {
-                    "Title": phase_title,
-                    "Description": phase_desc,
-                    "Start": phase_start,
-                    "End": phase_end
-                }
-                if st.button("Remove Phase", key=f"remove_phase_{idx}"):
-                    phases_copy = st.session_state.phases.copy()
-                    phases_copy.pop(idx)
-                    st.session_state.phases = phases_copy
-                    st.success("Phase removed. Please click 'Save / Update Scope Setup' to refresh.")
+    # Initialize phases list if necessary
+    if len(st.session_state.phases) != num_phases:
+        st.session_state.phases = [{"Title": "", "Description": "", "DurationWeeks": 4} for _ in range(num_phases)]
     
-    if st.button("Add New Phase"):
-        st.session_state.phases.append({
-            "Title": "",
-            "Description": "",
-            "Start": project_start_date,
-            "End": project_end_date
-        })
-        st.success("New phase added. Please review and update as needed.")
+    current_start = project_start_date
+    for idx, phase in enumerate(st.session_state.phases):
+        with st.expander(f"Phase {idx+1} Details"):
+            phase_title = st.text_input("Phase Title", value=phase.get("Title", ""), key=f"phase_title_{idx}")
+            phase_desc = st.text_area("Phase Description", value=phase.get("Description", ""), key=f"phase_desc_{idx}")
+            duration_weeks = st.number_input("Duration (weeks)", min_value=1, value=phase.get("DurationWeeks", 4), key=f"duration_{idx}")
+            phase_end = current_start + timedelta(days=duration_weeks*7 - 1)
+            st.write(f"**Computed Phase Dates:** {current_start} to {phase_end}")
+            st.session_state.phases[idx] = {
+                "Title": phase_title,
+                "Description": phase_desc,
+                "Start": current_start,
+                "End": phase_end,
+                "DurationWeeks": duration_weeks
+            }
+            current_start = phase_end + timedelta(days=1)
     
     st.markdown("---")
     st.markdown("### Broad Project Goals")
@@ -353,25 +339,9 @@ with tab1:
         st.session_state.sprint_log.append(task_entry)
         st.success("Task added to project!")
 
-# ----------------- Sidebar Running Cost Summary -----------------
-with cost_container:
-    st.markdown("### Running Project Cost Summary")
-    if st.session_state.sprint_log:
-        df_log = pd.DataFrame(st.session_state.sprint_log)
-        if "Direct Cost" not in df_log.columns:
-            df_log["Direct Cost"] = 0
-        total_direct_cost = df_log["Direct Cost"].sum()
-        overhead_amount = total_direct_cost * (overhead_percent / 100)
-        total_project_cost = total_direct_cost + overhead_amount
-        st.write(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
-        st.write(f"**Overhead ({overhead_percent}%):** ${overhead_amount:,.2f}")
-        st.write(f"**Total Project Cost:** ${total_project_cost:,.2f}")
-    else:
-        st.write("No tasks added yet.")
-
-# ----------------- Tab 2: Dashboard -----------------
+# ----------------- Tab 2: Project Cart and Dashboard -----------------
 with tab2:
-    st.subheader("Project Dashboard & Visualization")
+    st.subheader("Project Cart and Dashboard")
     
     scope = st.session_state.scope_info
     if scope:
@@ -392,19 +362,34 @@ with tab2:
         st.markdown("### Broad Project Goals")
         st.markdown(scope.get("Project Goals", ""))
     
+    # Display tasks with remove/edit capabilities
     if st.session_state.sprint_log:
+        st.markdown("### Project Cart")
+        # Iterate over tasks and include a Remove button for each.
+        for idx, task in enumerate(st.session_state.sprint_log):
+            col1, col2 = st.columns([8, 2])
+            with col1:
+                phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
+                st.markdown(f"**{task['Task']}** (Category: {task['Category']}){phase_info} — Qty: {task['Quantity']}, Direct Cost: ${task['Direct Cost']}, Total Cost: ${round(task['Direct Cost']*(1+overhead_percent/100),2)}")
+                if task.get("Modifiers"):
+                    st.markdown(f"*Modifiers:* {task['Modifiers'].get('Custom Notes', '')}")
+            with col2:
+                if st.button("Remove", key=f"remove_task_{idx}"):
+                    st.session_state.sprint_log.pop(idx)
+                    st.experimental_rerun()
+                    
         df_log = pd.DataFrame(st.session_state.sprint_log)
-        if "Direct Cost" not in df_log.columns:
-            df_log["Direct Cost"] = 0
-        st.dataframe(df_log, use_container_width=True)
-        
-        total_direct_cost = df_log["Direct Cost"].sum()
+        total_direct_cost = df_log["Direct Cost"].sum() if not df_log.empty else 0
         overhead_amount = total_direct_cost * (overhead_percent / 100)
         total_project_cost = total_direct_cost + overhead_amount
         st.markdown(f"**Total Direct Cost:** ${total_direct_cost:,.2f}")
         st.markdown(f"**Overhead:** ${overhead_amount:,.2f}")
         st.markdown(f"**Total Project Cost:** ${total_project_cost:,.2f}")
+        # Warning if cost exceeds budget
+        if scope and total_project_cost > scope.get("Budget Estimate", float('inf')):
+            st.warning("Total project cost exceeds your rough budget estimate. Consider adjusting your cart.")
         
+        # Charts
         cost_by_category = df_log.groupby("Category")["Direct Cost"].sum().reset_index()
         fig, ax = plt.subplots(figsize=(5, 3))
         ax.bar(cost_by_category["Category"], cost_by_category["Direct Cost"])
@@ -482,8 +467,7 @@ with tab3:
         historical_inspiration = (
             "Our previous proposal, 'A Vision for the Development of a Protocol for a Longitudinal Healthy Aging Study in The Villages, Florida,' "
             "was structured around key sections including Approach, Proposed Work Plan, Project Timeline, Coordination Plan, Budget/Cost-Estimate, "
-            "Material Assumptions, Staffing and Roles, and Prior Work & Established Expertise. These themes should inspire the tone, depth, and structure "
-            "of the new proposal."
+            "Material Assumptions, Staffing and Roles, and Prior Work & Established Expertise. These themes should inspire the tone, depth, and structure of the new proposal."
         )
         prompt = f"Generate a detailed, professional proposal for the following project using the provided structured data and historical inspiration.\n\n"
         prompt += f"Project Name: {scope.get('Project Name', 'Untitled Project')}\n"
