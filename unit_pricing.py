@@ -41,7 +41,7 @@ with tab0:
     st.subheader("📋 Define Project Scope")
     st.markdown("Fill out initial project info to inform planning and exports.")
 
-                            scope_info = st.session_state.scope_info if 'scope_info' in st.session_state else {}
+                                    scope_info = st.session_state.scope_info if 'scope_info' in st.session_state else {}
 
     scope_name = st.text_input("Project Name", value=scope_info.get("Project Name", ""))
     study_type = st.selectbox("Study Type", ["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"], index=["Exploratory", "Cross-sectional", "Longitudinal", "Pilot", "RCT", "Registry"].index(scope_info.get("Study Type", "Exploratory")))
@@ -50,10 +50,10 @@ with tab0:
     irb_status = st.selectbox("IRB Status", ["Not started", "Exempt", "Full Board", "Approved"], index=["Not started", "Exempt", "Full Board", "Approved"].index(scope_info.get("IRB Status", "Not started")))
     data_methods = st.multiselect("Data Collection Methods", ["Surveys", "Interviews", "Focus Groups", "Devices", "Diaries"], default=scope_info.get("Data Methods", []))
     incentives = st.selectbox("Use of Incentives", ["None", "$25", "$50", "$100+"], index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None")))
-                                tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))))
-                            timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))))
-                                        study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
-                                        budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
+                                    tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))))
+                                timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))))
+                                            study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6))), 6)))", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
+                                            budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000))), min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
 
                                 st.markdown("---")
     st.markdown("### 🧱 Optional: Define Key Milestones / Sprints")
@@ -67,7 +67,7 @@ with tab0:
 
     sprint3_name = st.text_input("Sprint 3 Title", value=scope_info.get("Sprint 3 Title", "Phase 3: Analysis & Reporting"))
     sprint3_goal = st.text_area("Sprint 3 Goal / Summary", value=scope_info.get("Sprint 3 Goal", "Analyze results and deliver final report to partner."))
-                                            if st.button("Save / Update Scope Setup"):
+                                                if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
             "Project Name": scope_name,
             "Study Type": study_type,
@@ -189,7 +189,7 @@ with tab3:
 ")
 
     st.markdown("---")
-                                                                st.markdown("### 🧩 Task Breakdown")
+                                                                        st.markdown("### 🧩 Task Breakdown")
         for task in log:
             st.markdown(f"**{task['Task']}** — Est. {task['Units']} units (${task['Cost']})")
             desc = task_df[task_df["Task Name"] == task["Task"]]["Longer Description (SOW)"]
