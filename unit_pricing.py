@@ -51,9 +51,9 @@ with tab0:
     data_methods = st.multiselect("Data Collection Methods", ["Surveys", "Interviews", "Focus Groups", "Devices", "Diaries"], default=scope_info.get("Data Methods", []))
     incentives = st.selectbox("Use of Incentives", ["None", "$25", "$50", "$100+"], index=["None", "$25", "$50", "$100+"].index(scope_info.get("Incentives", "None")))
     tech = st.selectbox("Tech Integration", ["None", "REDCap", "mHealth Device", "App"], index=["None", "REDCap", "mHealth Device", "App"].index(scope_info.get("Tech", "None")))
-    timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))
-study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6)))
-budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))
+        timeline = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=["Standard", "Expedited"].index(scope_info.get("Timeline", "Standard")))))
+            study_length = st.number_input("Estimated Study Length (Months)", min_value=1, value=int(scope_info.get("Study Length (Months)", 6))), 6)))
+            budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(scope_info.get("Budget Estimate", 100000)))))
 
     st.markdown("---")
     st.markdown("### 🧱 Optional: Define Key Milestones / Sprints")
@@ -67,7 +67,7 @@ budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, valu
 
     sprint3_name = st.text_input("Sprint 3 Title", value=scope_info.get("Sprint 3 Title", "Phase 3: Analysis & Reporting"))
     sprint3_goal = st.text_area("Sprint 3 Goal / Summary", value=scope_info.get("Sprint 3 Goal", "Analyze results and deliver final report to partner."))
-    if st.button("Save / Update Scope Setup"):
+                if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
             "Project Name": scope_name,
             "Study Type": study_type,
@@ -77,7 +77,15 @@ budget_estimate = st.number_input("Rough Budget Estimate ($)", min_value=0, valu
             "Data Methods": data_methods,
             "Incentives": incentives,
             "Tech": tech,
-            "Timeline": timeline
+            "Timeline": timeline,
+            "Study Length (Months)": study_length,
+            "Budget Estimate": budget_estimate,
+            "Sprint 1 Title": sprint1_name,
+            "Sprint 1 Goal": sprint1_goal,
+            "Sprint 2 Title": sprint2_name,
+            "Sprint 2 Goal": sprint2_goal,
+            "Sprint 3 Title": sprint3_name,
+            "Sprint 3 Goal": sprint3_goal
         }
         st.success("Scope setup saved or updated! Proceed to Manual Builder.")
 
@@ -181,11 +189,11 @@ with tab3:
 ")
 
     st.markdown("---")
-        st.markdown("### 🧩 Task Breakdown")
+            st.markdown("### 🧩 Task Breakdown")
         for task in log:
             st.markdown(f"**{task['Task']}** — Est. {task['Units']} units (${task['Cost']})")
-            desc = task_df[task_df["Task Name"] == task["Task"]]["Long Description"]
+            desc = task_df[task_df["Task Name"] == task["Task"]]["Longer Description (SOW)"] == task["Task"]]["Longer Description (SOW)"]
             if not desc.empty:
                 st.markdown(desc.iloc[0])
     else:
-        st.info("No tasks added to sprint log yet.") 
+        st.info("No tasks added to sprint log yet.")
