@@ -27,7 +27,6 @@ with st.sidebar:
 cost_container = st.sidebar.container()
 with cost_container:
     st.markdown("### Running Project Cost Summary")
-    st.write("Debug: Current tasks", st.session_state.sprint_log)
     if st.session_state.sprint_log:
         df_log = pd.DataFrame(st.session_state.sprint_log)
         if "Direct Cost" not in df_log.columns:
