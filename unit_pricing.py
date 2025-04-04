@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import date, timedelta
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 # ----------------- Page Configuration -----------------
 st.set_page_config(page_title="Dynamic Research Project Scoping Tool", layout="wide")
@@ -27,8 +28,8 @@ if "task_modifiers" not in st.session_state:
     st.session_state.task_modifiers = {}
 
 # ----------------- Comprehensive Service Database -----------------
-# (Sample entries; you can expand this to include all 13 core buckets.)
 data = [
+    # 1. Discovery & Design
     {
         "Category": "Discovery & Design",
         "Subcategory": "",
@@ -46,6 +47,7 @@ data = [
         "Tags/Modifiers": "Remote, Quick-turnaround",
         "Notes": "Ideal for early-stage projects."
     },
+    # 2. Stakeholder & Community Engagement
     {
         "Category": "Stakeholder & Community Engagement",
         "Subcategory": "",
@@ -63,6 +65,7 @@ data = [
         "Tags/Modifiers": "Culturally tailored, Virtual/In-person",
         "Notes": "Adjust group size based on client needs."
     },
+    # 3. Study Planning & IRB
     {
         "Category": "Study Planning & IRB",
         "Subcategory": "",
@@ -80,6 +83,7 @@ data = [
         "Tags/Modifiers": "Regulatory, Detailed",
         "Notes": "Essential for clinical research."
     },
+    # 5. Data Collection & Management (Examples)
     {
         "Category": "Data Collection & Management",
         "Subcategory": "Self-Reported Survey",
@@ -114,6 +118,7 @@ data = [
         "Tags/Modifiers": "Standard, Advanced",
         "Notes": "Advanced options available."
     },
+    # 12. Strategic Advisory & Program Management
     {
         "Category": "Strategic Advisory & Program Management",
         "Subcategory": "",
@@ -147,15 +152,24 @@ with tab0:
     project_name = st.text_input("Project Name", value=st.session_state.scope_info.get("Project Name", ""))
     project_description = st.text_area("Project Description", value=st.session_state.scope_info.get("Project Description", ""))
     partner_name = st.text_input("Partner Name", value=st.session_state.scope_info.get("Partner Name", ""))
-    project_type = st.selectbox("Project Type", ["Research", "Program Evaluation", "Consulting", "Other"], index=0)
+    
+    # More specific project types (expandable list)
+    project_type = st.selectbox("Project Type", 
+                                ["Pilot Study", "Cross-sectional", "Longitudinal", "Mixed Methods", "Experimental", 
+                                 "Evaluation", "Education", "Training", "Strategic Guidance", "Other"],
+                                index=0)
+    
     target_sample_size = st.number_input("Target Sample Size (N)", min_value=1, value=int(st.session_state.scope_info.get("Estimated N", 50)))
     rough_budget = st.number_input("Rough Budget Estimate ($)", min_value=0, value=int(st.session_state.scope_info.get("Budget Estimate", 100000)))
+    
+    # Study length and timeline preference
     study_length = st.number_input("Study Length (Months)", min_value=1, value=int(st.session_state.scope_info.get("Study Length (Months)", 12)))
     timeline_preference = st.selectbox("Timeline Preference", ["Standard", "Expedited"], index=0)
     
-    # Date fields for overall project
+    # Date fields (end date is computed automatically)
     project_start_date = st.date_input("Project Start Date", value=st.session_state.scope_info.get("Project Start Date", date.today()))
-    project_end_date = st.date_input("Project End Date", value=st.session_state.scope_info.get("Project End Date", date.today() + timedelta(days=365)))
+    project_end_date = project_start_date + relativedelta(months=study_length)
+    st.markdown(f"**Computed Project End Date:** {project_end_date}")
     
     st.markdown("---")
     st.markdown("### Define Key Phases / Milestones")
@@ -164,21 +178,22 @@ with tab0:
     phase1_title = st.text_input("Phase 1 Title", value=st.session_state.scope_info.get("Phase 1 Title", "Phase 1: Discovery"))
     phase1_desc = st.text_area("Phase 1 Description", value=st.session_state.scope_info.get("Phase 1 Description", "Initial exploration, needs assessment, and stakeholder mapping."))
     phase1_start = st.date_input("Phase 1 Start Date", value=st.session_state.scope_info.get("Phase 1 Start Date", project_start_date))
-    phase1_end = st.date_input("Phase 1 End Date", value=st.session_state.scope_info.get("Phase 1 End Date", project_start_date + timedelta(days=90)))
+    phase1_end = st.date_input("Phase 1 End Date", value=st.session_state.scope_info.get("Phase 1 End Date", project_start_date + relativedelta(months=3)))
     
     phase2_title = st.text_input("Phase 2 Title", value=st.session_state.scope_info.get("Phase 2 Title", "Phase 2: Implementation"))
     phase2_desc = st.text_area("Phase 2 Description", value=st.session_state.scope_info.get("Phase 2 Description", "Execute data collection, interventions, and initial analysis."))
-    phase2_start = st.date_input("Phase 2 Start Date", value=st.session_state.scope_info.get("Phase 2 Start Date", phase1_end + timedelta(days=1)))
-    phase2_end = st.date_input("Phase 2 End Date", value=st.session_state.scope_info.get("Phase 2 End Date", phase2_start + timedelta(days=180)))
+    phase2_start = st.date_input("Phase 2 Start Date", value=st.session_state.scope_info.get("Phase 2 Start Date", phase1_end + relativedelta(days=1)))
+    phase2_end = st.date_input("Phase 2 End Date", value=st.session_state.scope_info.get("Phase 2 End Date", phase2_start + relativedelta(months=5)))
     
     phase3_title = st.text_input("Phase 3 Title", value=st.session_state.scope_info.get("Phase 3 Title", "Phase 3: Reporting"))
     phase3_desc = st.text_area("Phase 3 Description", value=st.session_state.scope_info.get("Phase 3 Description", "Final analysis, reporting, and dissemination of findings."))
-    phase3_start = st.date_input("Phase 3 Start Date", value=st.session_state.scope_info.get("Phase 3 Start Date", phase2_end + timedelta(days=1)))
+    phase3_start = st.date_input("Phase 3 Start Date", value=st.session_state.scope_info.get("Phase 3 Start Date", phase2_end + relativedelta(days=1)))
     phase3_end = st.date_input("Phase 3 End Date", value=st.session_state.scope_info.get("Phase 3 End Date", project_end_date))
     
     st.markdown("---")
     st.markdown("### Objectives / Deliverables")
-    objectives = st.text_area("Key Objectives / Deliverables", value=st.session_state.scope_info.get("Objectives", "List the main deliverables (e.g., Final Report, Data Dashboard, Strategic Roadmap)."))
+    objectives = st.text_area("Key Objectives / Deliverables", value=st.session_state.scope_info.get("Objectives", 
+                                    "List the main deliverables (e.g., Final Report, Data Dashboard, Strategic Roadmap)."))
     
     if st.button("Save / Update Scope Setup"):
         st.session_state.scope_info = {
@@ -218,7 +233,6 @@ with tab1:
     
     # Filter services based on selected category
     filtered_services = df_services[df_services["Category"] == selected_category]
-    # If Subcategory is available, let user choose it
     if filtered_services["Subcategory"].nunique() > 1 or (filtered_services["Subcategory"].nunique() == 1 and filtered_services.iloc[0]["Subcategory"] != ""):
         subcategories = filtered_services["Subcategory"].unique()
         selected_subcategory = st.selectbox("Subcategory", subcategories)
@@ -227,7 +241,7 @@ with tab1:
     selected_task = st.selectbox("Select Task", filtered_services["Task Name"].unique())
     task_info = filtered_services[filtered_services["Task Name"] == selected_task].iloc[0]
     
-    # Check for overrides in session_state for this task
+    # Check for overrides in session state for this task
     overrides = st.session_state.task_modifiers.get(selected_task, {})
     effective_hours = overrides.get("Estimated Hours", task_info["Estimated Hours"])
     effective_base_cost = overrides.get("Base Cost", task_info["Base Cost"])
@@ -245,7 +259,7 @@ with tab1:
     st.markdown(f"**Deliverables:** {task_info['Deliverables']}")
     st.markdown(f"**Notes:** {effective_notes}")
     
-    # Editable task details: let the user override key parameters
+    # Editable task details
     if st.checkbox("Edit Task Details"):
         new_est_hours = st.number_input("Estimated Hours", value=effective_hours, key="edit_est_hours")
         new_base_cost = st.number_input("Base Cost", value=effective_base_cost, key="edit_base_cost")
@@ -262,11 +276,21 @@ with tab1:
             st.success("Task details updated!")
     
     st.markdown("---")
-    st.markdown("### Cost Simulation")
+    st.markdown("### Assign Task to a Phase")
+    phases = []
+    scope = st.session_state.scope_info
+    if scope:
+        for i in range(1, 4):
+            title = scope.get(f"Phase {i} Title", "")
+            if title:
+                phases.append(title)
+    phase_assignment = st.selectbox("Select Phase for this Task", options=phases) if phases else None
     
-    # For tasks with specific simulation options
+    st.markdown("---")
+    st.markdown("### Cost Simulation")
     if selected_task == "Self-Reported Survey Administration":
-        num_surveys = st.number_input("Number of Surveys", min_value=1, value=target_sample_size)
+        # Default number of surveys could be pre-populated using target_sample_size
+        num_surveys = st.number_input("Number of Surveys", min_value=1, value=scope.get("Estimated N", 50))
         survey_length = st.selectbox("Survey Length", ["Short (<10 min)", "Medium (10-30 min)", "Long (>30 min)"])
         delivery_method = st.selectbox("Delivery Method", ["Email", "In-Person", "Online Portal"])
         cost_multiplier = 1.0
@@ -294,14 +318,17 @@ with tab1:
         st.markdown(f"**Estimated Cost:** ${estimated_cost:,.2f}")
     
     if st.button("➕ Add Task to Project"):
-        st.session_state.sprint_log.append({
+        task_entry = {
             "Category": task_info["Category"],
             "Subcategory": task_info["Subcategory"],
             "Task": task_info["Task Name"],
             "Quantity": quantity,
             "Estimated Cost": round(estimated_cost, 2),
             "Modifiers": st.session_state.task_modifiers.get(selected_task, {})
-        })
+        }
+        if phase_assignment:
+            task_entry["Phase"] = phase_assignment
+        st.session_state.sprint_log.append(task_entry)
         st.success("Task added to project!")
 
 # ----------------- Tab 2: Dashboard -----------------
@@ -344,31 +371,40 @@ with tab2:
         total_cost = df_log["Estimated Cost"].sum()
         st.markdown(f"**Total Project Cost:** ${total_cost:,.2f}")
         
+        # Bar chart by category (smaller size)
         cost_by_category = df_log.groupby("Category")["Estimated Cost"].sum().reset_index()
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(5, 3))
         ax.bar(cost_by_category["Category"], cost_by_category["Estimated Cost"])
         ax.set_xlabel("Category")
         ax.set_ylabel("Cost ($)")
-        ax.set_title("Cost Breakdown by Category")
+        ax.set_title("Cost by Category")
         st.pyplot(fig)
+        
+        # Pie chart by phase (if tasks have been assigned a phase)
+        if "Phase" in df_log.columns and df_log["Phase"].notna().any():
+            cost_by_phase = df_log.groupby("Phase")["Estimated Cost"].sum()
+            fig2, ax2 = plt.subplots()
+            ax2.pie(cost_by_phase, labels=cost_by_phase.index, autopct="%1.1f%%", startangle=90)
+            ax2.set_title("Cost Distribution by Phase")
+            st.pyplot(fig2)
         
         # Gantt chart for phases
         if scope and phases:
             st.markdown("### Project Timeline (Gantt Chart)")
-            fig2, ax2 = plt.subplots(figsize=(10, len(phases) * 0.5 + 1))
+            fig3, ax3 = plt.subplots(figsize=(10, len(phases) * 0.5 + 1))
             for i, phase in enumerate(phases):
                 if phase["Start"] and phase["End"]:
                     start_num = mdates.date2num(phase["Start"])
                     end_num = mdates.date2num(phase["End"])
                     duration = end_num - start_num
-                    ax2.barh(i, duration, left=start_num, height=0.3, color="skyblue")
-                    ax2.text(start_num + duration/2, i, phase["Title"], va="center", ha="center", color="black")
-            ax2.set_yticks(range(len(phases)))
-            ax2.set_yticklabels([phase["Title"] for phase in phases])
-            ax2.xaxis_date()
-            ax2.set_xlabel("Date")
-            ax2.set_title("Project Timeline")
-            st.pyplot(fig2)
+                    ax3.barh(i, duration, left=start_num, height=0.3, color="skyblue")
+                    ax3.text(start_num + duration/2, i, phase["Title"], va="center", ha="center", color="black")
+            ax3.set_yticks(range(len(phases)))
+            ax3.set_yticklabels([phase["Title"] for phase in phases])
+            ax3.xaxis_date()
+            ax3.set_xlabel("Date")
+            ax3.set_title("Project Timeline")
+            st.pyplot(fig3)
     else:
         st.info("No tasks have been added to the project yet.")
 
@@ -383,7 +419,6 @@ with tab3:
         st.markdown(f"""
 - **Partner:** {scope.get('Partner Name', '')}
 - **Project Type:** {scope.get('Project Type', '')}
-- **Study Type:** {scope.get('Study Type', '')}
 - **Target Sample Size (N):** {scope.get('Estimated N', '')}
 - **Timeline:** {scope.get('Timeline', '')}
 - **Study Length (Months):** {scope.get('Study Length (Months)', '')}
@@ -401,7 +436,8 @@ with tab3:
     st.markdown("### Task Breakdown")
     if sprint_log:
         for task in sprint_log:
-            st.markdown(f"**{task['Task']}** (Category: {task['Category']}) — Qty: {task['Quantity']}, Cost: ${task['Estimated Cost']}")
+            phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
+            st.markdown(f"**{task['Task']}** (Category: {task['Category']}){phase_info} — Qty: {task['Quantity']}, Cost: ${task['Estimated Cost']}")
             if task.get("Modifiers"):
                 st.markdown(f"*Modifiers:* {task['Modifiers'].get('Custom Notes', '')}")
     else:
@@ -411,7 +447,7 @@ with tab3:
         proposal = ""
         proposal += "# Proposal for " + scope.get("Project Name", "Untitled Project") + "\n\n"
         proposal += "## Introduction\n"
-        proposal += ("This proposal outlines our comprehensive approach for the project, including our methodology, timeline, and cost breakdown. "
+        proposal += ("This proposal outlines our comprehensive approach for the project, including methodology, timeline, and cost breakdown. "
                      "Our team is committed to delivering high-quality outcomes tailored to your needs.\n\n")
         proposal += "## Project Overview\n"
         proposal += f"- **Partner:** {scope.get('Partner Name', '')}\n"
@@ -435,7 +471,8 @@ with tab3:
         
         proposal += "## Detailed Task Breakdown\n"
         for task in sprint_log:
-            proposal += f"### {task['Task']} (Category: {task['Category']})\n"
+            phase_info = f" (Phase: {task.get('Phase')})" if task.get("Phase") else ""
+            proposal += f"### {task['Task']} (Category: {task['Category']}){phase_info}\n"
             proposal += f"- **Quantity:** {task['Quantity']}\n"
             proposal += f"- **Estimated Cost:** ${task['Estimated Cost']}\n"
             if task.get("Modifiers"):
@@ -447,7 +484,9 @@ with tab3:
         proposal += "## Timeline & Deliverables\n"
         proposal += "A detailed timeline and deliverables will be provided upon project initiation.\n\n"
         proposal += "## Conclusion\n"
-        proposal += "We look forward to partnering with you on this project.\n\n"
+        proposal += ("Based on our experience and the defined scope, we are confident that our approach will maximize ROI "
+                     "and deliver actionable outcomes for your organization.\n\n")
+        # TODO: Integrate a library of longer, method-specific descriptions for a multi-page proposal.
         proposal += "*(End of Proposal)*\n"
         return proposal
     
